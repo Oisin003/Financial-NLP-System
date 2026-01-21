@@ -28,12 +28,11 @@ const createAdmin = async () => {
       role: 'admin'
     });
 
-    console.log('\n✓ Admin user created successfully!');
+    console.log('\n✓ Admin user created');
     console.log('=================================');
     console.log('Email: admin@achilles.com');
     console.log('Password: Admin@123');
     console.log('=================================');
-    console.log('\nIMPORTANT: Please change this password after first login!');
     
     process.exit(0);
   } catch (error) {

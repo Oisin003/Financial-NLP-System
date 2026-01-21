@@ -57,6 +57,58 @@ const Document = sequelize.define('Document', {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW
+  },
+  
+  // NLP Processing fields
+  // Extracted raw text from PDF
+  extractedText: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  
+  // Processed tokens (JSON array)
+  processedTokens: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const value = this.getDataValue('processedTokens');
+      return value ? JSON.parse(value) : null;
+    },
+    set(value) {
+      this.setDataValue('processedTokens', JSON.stringify(value));
+    }
+  },
+  
+  // Word frequency data (JSON object)
+  wordFrequency: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const value = this.getDataValue('wordFrequency');
+      return value ? JSON.parse(value) : null;
+    },
+    set(value) {
+      this.setDataValue('wordFrequency', JSON.stringify(value));
+    }
+  },
+  
+  // Top words (JSON array)
+  topWords: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const value = this.getDataValue('topWords');
+      return value ? JSON.parse(value) : null;
+    },
+    set(value) {
+      this.setDataValue('topWords', JSON.stringify(value));
+    }
+  },
+  
+  // Processing status
+  nlpProcessed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'documents',

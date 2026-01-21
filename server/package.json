@@ -9,6 +9,7 @@
     "start": "nodemon server.js",
     "start:prod": "node server.js",
     "create-admin": "node createAdmin.js",
+    "migrate-nlp": "node migrate-nlp.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit"
   },
   "jest": {
@@ -31,6 +32,8 @@
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "natural": "^8.1.0",
+    "pdf-parse": "^1.1.1",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"
   },
