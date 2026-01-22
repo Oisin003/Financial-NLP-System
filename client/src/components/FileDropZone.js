@@ -17,14 +17,14 @@ function FileDropZone({ onFileSelect, onDrop, onDragOver }) {
       }}
     >
       {/* Upload icon */}
-      <div className="bg-light rounded-circle mb-3" 
+      <div className="upload-icon-container" 
            style={{width: '80px', height: '80px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}>
-        <i className="bi bi-cloud-upload text-primary" style={{ fontSize: '3rem' }}></i>
+        <i className="upload-icon" style={{ fontSize: '3rem' }}></i>
       </div>
 
       {/* Instructions */}
-      <h5 className="fw-bold mb-2">Drag and drop your PDF here</h5>
-      <p className="text-muted mb-3">or click to browse</p>
+      <h5 className="drop-zone-title">Drag and drop your PDF here</h5>
+      <p className="drop-zone-subtitle">or click to browse</p>
       
       {/* Hidden file input */}
       <input
@@ -32,22 +32,22 @@ function FileDropZone({ onFileSelect, onDrop, onDragOver }) {
         id="fileInput"
         accept=".pdf"
         onChange={onFileSelect}
-        className="d-none"
+        className="hidden"
       />
-      <label htmlFor="fileInput" className="btn btn-primary">
-        <i className="bi bi-folder2-open me-2"></i>
+      <label htmlFor="fileInput" className="choose-file-button">
+        <i className="folder-icon"></i>
         Choose File
       </label>
       
       {/* File requirements */}
-      <div className="mt-3">
-        <div className="row">
-          <div className="col-md-6">
-            <i className="bi bi-file-pdf me-2 text-danger"></i>
+      <div className="file-requirements">
+        <div className="requirements-row">
+          <div className="requirement-item">
+            <i className="pdf-icon"></i>
             <strong>Format:</strong> PDF only
           </div>
-          <div className="col-md-6">
-            <i className="bi bi-hdd me-2 text-primary"></i>
+          <div className="requirement-item">
+            <i className="size-icon"></i>
             <strong>Max Size:</strong> 10MB
           </div>
         </div>

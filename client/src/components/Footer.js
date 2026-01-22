@@ -48,7 +48,7 @@ function Footer() {
             <ul className="list-unstyled">
               <li className="mb-2">
                 <i className="bi bi-envelope-fill me-2"></i>
-                info@achilles-ltd.com
+                info@achillesLtd.com
               </li>
               <li className="mb-2">
                 <i className="bi bi-telephone-fill me-2"></i>

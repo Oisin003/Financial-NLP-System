@@ -52,13 +52,13 @@ describe('Authentication Tests', () => {
   });
 
   // Test 2: Reject registration with weak password
-  test('Should reject registration with weak password', async () => {
+  test('This should reject registration with weak password', async () => {
     const response = await request(app)
       .post('/api/auth/register')
       .send({
-        username: 'weakuser',
-        email: 'weak@example.com',
-        password: 'weak' // Too short, no uppercase, no special char
+        username: 'weakUserName',
+        email: 'weakEmail@achilles.com',
+        password: 'pass' // Too short, no uppercase, no special char
       });
     
     // Should return 400 error with validation messages

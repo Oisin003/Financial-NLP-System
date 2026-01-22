@@ -5,11 +5,9 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "prestart": "npm install",
     "start": "nodemon server.js",
     "start:prod": "node server.js",
     "create-admin": "node createAdmin.js",
-    "migrate-nlp": "node migrate-nlp.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit"
   },
   "jest": {

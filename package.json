@@ -1,17 +1,13 @@
 {
   "name": "achilles-ltd",
   "version": "1.0.0",
-  "description": "Achilles Ltd - Financial NLP System ",
+  "description": "Achilles Ltd - Financial NLP System",
   "main": "server/server.js",
   "scripts": {
-    "prestart": "npm install && cd server && npm install && cd ../client && npm install",
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && node server.js",
-    "client": "cd client && npm start",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+    "client": "cd client && npm start"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "concurrently": "^8.2.2"
