@@ -34,6 +34,18 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- SMALL HELPERS ---
+// Keep role checks in one place to avoid repeating logic
+const buildWhereClause = (req, id) => (
+  req.user.role === 'admin'
+    ? (id ? { id } : {})
+    : (id ? { id, userId: req.user.id } : { userId: req.user.id })
+);
+
+const findDocument = (req, id) => (
+  Document.findOne({ where: buildWhereClause(req, id) })
+);
+
 // --- FILE UPLOAD CONFIGURATION ---
 
 // Configure where and how files are stored
@@ -110,6 +122,7 @@ router.post('/upload', auth, upload.single('document'), async (req, res) => {
     });
 
     // Start NLP processing in the background (async, don't wait)
+    // NOTE: this runs after we respond to keep upload fast
     processDocumentNLP(document);
 
     // Send response immediately (processing happens in background)
@@ -151,16 +164,9 @@ router.get('/', auth, async (req, res) => {
     // Import User model to include user info in results
     const { User } = await import('../models/User.js');
 
-    // Build where clause based on user role
-    // Admin: {} (no filter, get all)
-    // User: { userId: req.user.id } (only their documents)
-    const whereClause = req.user.role === 'admin' 
-      ? {} 
-      : { userId: req.user.id };
-
-    // Fetch documents from database
+    // Fetch documents (newest first)
     const documents = await Document.findAll({
-      where: whereClause,
+      where: buildWhereClause(req),
       order: [['uploadDate', 'DESC']],  // Newest first
       attributes: ['id', 'originalName', 'filename', 'fileSize', 'uploadDate', 'userId'],
       include: [{
@@ -195,15 +201,8 @@ router.get('/', auth, async (req, res) => {
  */
 router.get('/:id', auth, async (req, res) => {
   try {
-    // Build where clause based on user role
-    const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }  // Admin can access any document
-      : { id: req.params.id, userId: req.user.id };  // User only their own
-
-    // Find the document
-    const document = await Document.findOne({
-      where: whereClause
-    });
+    // Find the document (role-aware)
+    const document = await findDocument(req, req.params.id);
 
     // Check if document exists in database
     if (!document) {
@@ -218,28 +217,6 @@ router.get('/:id', auth, async (req, res) => {
     // Send file for download with original filename
     res.download(document.filePath, document.originalName);
     
-  } catch (error) {
-    console.error('Error downloading document:', error);
-    res.status(500).json({ error: 'Failed to download document' });
-  }
-});
-      : { id: req.params.id, userId: req.user.id };
-
-    const document = await Document.findOne({
-      where: whereClause
-    });
-
-    if (!document) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    // Check if file exists
-    if (!fs.existsSync(document.filePath)) {
-      return res.status(404).json({ error: 'File not found on server' });
-    }
-
-    // Send file for download
-    res.download(document.filePath, document.originalName);
   } catch (error) {
     console.error('Error downloading document:', error);
     res.status(500).json({ error: 'Failed to download document' });
@@ -267,22 +244,15 @@ router.get('/:id', auth, async (req, res) => {
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Build where clause based on user role
-    const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }  // Admin can delete any document
-      : { id: req.params.id, userId: req.user.id };  // User only their own
-
-    // Find the document
-    const document = await Document.findOne({
-      where: whereClause
-    });
+    // Find the document (role-aware)
+    const document = await findDocument(req, req.params.id);
 
     // Check if document exists
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Step 1: Delete physical file from disk
+    // Step 1: Delete physical file from disk (if it exists)
     if (fs.existsSync(document.filePath)) {
       fs.unlinkSync(document.filePath);
     }
@@ -318,6 +288,7 @@ async function processDocumentNLP(document) {
     console.log(`Processing document ${document.id} with NLP...`);
     
     // Run NLP processing on the PDF file
+    // This extracts text, tokenizes, and builds stats
     const nlpResults = await processDocument(document.filePath);
     
     // Save NLP results to database
@@ -354,13 +325,8 @@ async function processDocumentNLP(document) {
  */
 router.get('/:id/nlp', auth, async (req, res) => {
   try {
-    // Build where clause based on user role
-    const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }
-      : { id: req.params.id, userId: req.user.id };
-
-    // Find the document
-    const document = await Document.findOne({ where: whereClause });
+    // Find the document (role-aware)
+    const document = await findDocument(req, req.params.id);
 
     // Check if document exists
     if (!document) {
@@ -410,13 +376,8 @@ router.get('/:id/nlp', auth, async (req, res) => {
  */
 router.post('/:id/reprocess', auth, async (req, res) => {
   try {
-    // Build where clause based on user role
-    const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }
-      : { id: req.params.id, userId: req.user.id };
-
-    // Find the document
-    const document = await Document.findOne({ where: whereClause });
+    // Find the document (role-aware)
+    const document = await findDocument(req, req.params.id);
 
     // Check if document exists
     if (!document) {

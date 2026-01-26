@@ -14,6 +14,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import API_URL from '../config';
 
 function Register({ onLogin }) {
   // Form data state
@@ -77,7 +78,7 @@ function Register({ onLogin }) {
 
     try {
       // Send registration request to backend
-      const response = await fetch('http://localhost:8080/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

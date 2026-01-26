@@ -5,6 +5,8 @@
  * Used throughout the document management system
  */
 
+import API_URL from '../config';
+
 /**
  * Convert bytes to human-readable file size
  * 
@@ -81,7 +83,7 @@ export const groupDocumentsByMonth = (documents) => {
 export const downloadDocument = async (documentId, originalName) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:8080/api/documents/${documentId}`, {
+    const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

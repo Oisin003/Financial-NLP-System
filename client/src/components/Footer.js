@@ -99,14 +99,14 @@ function Footer() {
                 <i className="bi bi-linkedin"></i>
               </a>
               <a 
-                href="#" 
+                href="https://twitter.com/" 
                 className="btn btn-outline-primary btn-sm" 
                 aria-label="Twitter"
               >
                 <i className="bi bi-twitter"></i>
               </a>
               <a 
-                href="#" 
+                href="https://www.facebook.com/" 
                 className="btn btn-outline-primary btn-sm" 
                 aria-label="Facebook"
               >

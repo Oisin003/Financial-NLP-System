@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config';
 
 function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -27,7 +28,7 @@ function AdminPanel() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/users', {
+      const response = await fetch(`${API_URL}/api/users`, {
         headers: {
           'Authorization': `Bearer ${token}` // Send JWT token for authentication
         }
@@ -55,7 +56,7 @@ function AdminPanel() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+      const response = await fetch(`${API_URL}/api/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

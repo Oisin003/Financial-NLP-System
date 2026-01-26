@@ -17,7 +17,7 @@
 
 import natural from 'natural';  // NLP library with tokenization and stemming
 import fs from 'fs';
-import pdfParse from 'pdf-parse';  // PDF text extraction library
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';  // PDF text extraction library
 
 // --- NLP TOOLS SETUP ---
 

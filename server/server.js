@@ -58,8 +58,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- START SERVER ---
-// Use PORT from environment variables, or default to 8080
-const PORT = process.env.PORT || 8080;
+// Use PORT from environment variables, or default to 5000 (matches client proxy)
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API available at http://localhost:${PORT}`);
