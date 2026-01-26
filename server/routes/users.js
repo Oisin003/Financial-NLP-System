@@ -1,13 +1,15 @@
 /**
- * User Management Routes
+ * User Management Routes - Admin and User Operations
+ * 
+ * This file handles user-related operations.
  * 
  * Endpoints:
- * - GET /api/users - Get all users (admin only)
- * - GET /api/users/me - Get current user info
+ * - GET    /api/users     - List all users (admin only)
+ * - GET    /api/users/me  - Get current user info
  * - DELETE /api/users/:id - Delete a user (admin only)
  * 
- * All routes require authentication via JWT token
- * Admin routes also check for admin role
+ * All routes require JWT authentication.
+ * Admin routes also verify admin role.
  */
 
 import express from 'express';
@@ -18,59 +20,82 @@ const router = express.Router();
 
 /**
  * GET /api/users
- * Returns all users (excluding passwords)
+ * Get a list of all users in the system
+ * 
  * Requires: Admin authentication
+ * 
+ * Response: Array of user objects (passwords excluded)
  */
 router.get('/', auth, adminAuth, async (req, res) => {
   try {
-    // Fetch all users but exclude password field
+    // Fetch all users from database, but don't include password field
     const users = await User.findAll({ 
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password'] }  // Don't send passwords to frontend!
     });
+    
     res.json(users);
+    
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching users:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 /**
  * GET /api/users/me
- * Returns current logged-in user's information
- * Requires: Authentication
+ * Get information about the currently logged-in user
+ * 
+ * Requires: Authentication (any user)
+ * 
+ * Response: Current user's information (password excluded)
  */
 router.get('/me', auth, async (req, res) => {
   try {
-    // Find user by ID from JWT token
+    // Find user by their ID (from JWT token, set by auth middleware)
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password'] }  // Don't send password
     });
+    
     res.json(user);
+    
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching user:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 /**
  * DELETE /api/users/:id
- * Deletes a user by ID along with all their documents
+ * Delete a user and all their documents
+ * 
  * Requires: Admin authentication
+ * 
+ * URL parameter:
+ *   :id - The ID of the user to delete
+ * 
+ * Response: Success message
+ * 
+ * Note: This also deletes all documents uploaded by the user
  */
 router.delete('/:id', auth, adminAuth, async (req, res) => {
   try {
-    // Import Document model
+    // Import Document model (we need it to delete user's documents)
     const Document = (await import('../models/Document.js')).default;
     
-    // First delete all documents belonging to this user
-    await Document.destroy({ where: { userId: req.params.id } });
+    // Step 1: Delete all documents belonging to this user
+    await Document.destroy({ 
+      where: { userId: req.params.id } 
+    });
     
-    // Then delete the user
-    await User.destroy({ where: { id: req.params.id } });
+    // Step 2: Delete the user
+    await User.destroy({ 
+      where: { id: req.params.id } 
+    });
     
     res.json({ message: 'User and their documents deleted successfully' });
+    
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

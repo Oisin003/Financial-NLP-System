@@ -1,5 +1,63 @@
 # Financial-NLP-System
 
+A document management system with NLP analysis for financial PDFs. Users can upload financial documents, which are automatically processed to extract key terms, word frequencies, and meaningful insights.
+
+## Project Structure
+
+### Server (Backend)
+
+#### Core Files
+- **server.js** - Main server entry point; sets up Express, connects database, configures routes
+- **createAdmin.js** - Utility script to create admin user account (run once during setup)
+- **package.json** - Server dependencies and npm scripts
+
+#### Models (`server/models/`)
+- **User.js** - User database schema; handles authentication, password hashing with bcrypt
+- **Document.js** - Document database schema; stores PDF metadata and NLP analysis results
+
+#### Routes (`server/routes/`)
+- **auth.js** - Login and registration endpoints; JWT token generation
+- **users.js** - User management endpoints (list, delete users); admin operations
+- **documents.js** - Document upload, download, delete, and NLP analysis endpoints
+
+#### Middleware (`server/middleware/`)
+- **auth.js** - JWT authentication middleware; protects routes, verifies user permissions
+
+#### Services (`server/services/`)
+- **nlpProcessor.js** - NLP analysis engine; extracts text from PDFs, tokenizes, removes stopwords, calculates word frequencies
+
+### Client (Frontend)
+
+#### Core Files
+- **App.js** - Main React component; manages routing, authentication state, protected routes
+- **index.js** - React app entry point; renders App component
+- **config.js** - Configuration file with backend API URL
+- **package.json** - Client dependencies and npm scripts
+
+#### Components (`client/src/components/`)
+- **Header.js** - Top navigation bar; shows user info, logout button, dynamic menu
+- **Footer.js** - Site footer with company info and links
+- **Login.js** - Login form; authenticates users, stores JWT token
+- **Register.js** - Registration form; creates new user accounts with password validation
+- **Dashboard.js** - Main dashboard after login; overview of system features
+- **Documents.js** - Document list page; displays user's uploaded documents
+- **UploadDocument.js** - File upload page; handles PDF uploads with drag-and-drop
+- **AdminPanel.js** - Admin-only page; user management, system statistics
+- **NLPAnalysis.js** - Displays NLP analysis results for a document
+- **DocumentCard.js** - Individual document card component for document list
+- **AlertMessage.js** - Reusable alert/notification component
+- **Logo.js** - Company logo SVG component
+
+#### Hooks (`client/src/hooks/`)
+- **useAlert.js** - Custom hook for managing alert messages
+- **useDocuments.js** - Custom hook for fetching and managing documents
+- **useFileUpload.js** - Custom hook for handling file upload logic
+
+#### Utils (`client/src/utils/`)
+- **alertUtils.js** - Alert type constants and helper functions for styling
+- **documentUtils.js** - Document-related utility functions
+- **fileUtils.js** - File validation and formatting utilities
+
 ## References & Resources
 
 ### Natural Language Processing

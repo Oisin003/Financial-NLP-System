@@ -1,16 +1,26 @@
 /**
- * Document Routes
+ * Document Routes - File Upload and Management
  * 
- * Handles file upload and retrieval for financial documents
+ * This file handles everything related to financial document uploads and analysis.
+ * 
+ * Endpoints:
+ * - POST   /api/documents/upload        - Upload a PDF file
+ * - GET    /api/documents               - List all documents
+ * - GET    /api/documents/:id           - Download a specific document
+ * - DELETE /api/documents/:id           - Delete a document
+ * - GET    /api/documents/:id/nlp       - Get NLP analysis results
+ * - POST   /api/documents/:id/reprocess - Reprocess NLP analysis
+ * 
  * Features:
- * - PDF file upload with validation
- * - Retrieve user's documents grouped by month
- * - Download individual documents
- * - Secure file storage with authentication
+ * - Secure file storage
+ * - Automatic NLP processing after upload
+ * - PDF validation (only PDFs allowed)
+ * - File size limit (10MB max)
+ * - User permissions (users can only access their own documents, admins see all)
  */
 
 import express from 'express';
-import multer from 'multer';
+import multer from 'multer';  // File upload handling
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -20,70 +30,89 @@ import { processDocument } from '../services/nlpProcessor.js';
 
 const router = express.Router();
 
-// Get current directory path (ES6 module compatible)
+// Get current directory path (ES6 module workaround)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure multer for file uploads
+// --- FILE UPLOAD CONFIGURATION ---
+
+// Configure where and how files are stored
 const storage = multer.diskStorage({
+  // Where to save uploaded files
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../uploads/documents');
-    // Ensure directory exists
+    
+    // Create upload directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
+    
     cb(null, uploadPath);
   },
+  
+  // How to name the uploaded file
   filename: (req, file, cb) => {
-    // Create unique filename with timestamp
+    // Create unique filename: timestamp-randomnumber-originalname.pdf
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + '-' + file.originalname);
   }
 });
 
-// File filter - only allow PDFs
+// Only allow PDF files
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === 'application/pdf') {
-    cb(null, true);
+    cb(null, true);  // Accept file
   } else {
-    cb(new Error('Only PDF files are allowed'), false);
+    cb(new Error('Only PDF files are allowed'), false);  // Reject file
   }
 };
 
-// Initialize multer with configuration
+// Initialize multer with our configuration
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024  // 10MB maximum file size
   }
 });
 
 /**
  * POST /api/documents/upload
  * Upload a PDF document
- * Requires authentication
+ * 
+ * Requires: Authentication
+ * 
+ * Request: multipart/form-data with 'document' field containing PDF file
+ * 
+ * Response: Document metadata (id, name, size, upload date)
+ * 
+ * What happens:
+ * 1. File is uploaded and saved to disk
+ * 2. Database record is created
+ * 3. NLP processing starts in background
+ * 4. Response is sent immediately (don't wait for NLP)
  */
 router.post('/upload', auth, upload.single('document'), async (req, res) => {
   try {
-    // Check if file was uploaded
+    // Check if a file was actually uploaded
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Create document record in database
+    // Create database record for the uploaded file
     const document = await Document.create({
-      originalName: req.file.originalname,
-      filename: req.file.filename,
-      filePath: req.file.path,
-      fileSize: req.file.size,
-      userId: req.user.id,
-      uploadDate: new Date()
+      originalName: req.file.originalname,  // User's filename
+      filename: req.file.filename,          // Our unique filename
+      filePath: req.file.path,              // Full path on server
+      fileSize: req.file.size,              // Size in bytes
+      userId: req.user.id,                  // Who uploaded it
+      uploadDate: new Date()                // When it was uploaded
     });
 
-    // Process document with NLP in the background
+    // Start NLP processing in the background (async, don't wait)
     processDocumentNLP(document);
 
+    // Send response immediately (processing happens in background)
     res.status(201).json({
       message: 'Document uploaded successfully',
       document: {
@@ -91,11 +120,12 @@ router.post('/upload', auth, upload.single('document'), async (req, res) => {
         originalName: document.originalName,
         fileSize: document.fileSize,
         uploadDate: document.uploadDate,
-        nlpProcessed: false
+        nlpProcessed: false  // Processing just started
       }
     });
+    
   } catch (error) {
-    // If database save fails, delete the uploaded file
+    // If database save fails, clean up the uploaded file
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
@@ -106,31 +136,42 @@ router.post('/upload', auth, upload.single('document'), async (req, res) => {
 
 /**
  * GET /api/documents
- * Get all documents for the authenticated user
- * Admins can see all documents from all users
- * Returns documents grouped by month
+ * Get a list of all documents
+ * 
+ * Requires: Authentication
+ * 
+ * Response: Array of documents with user information
+ * 
+ * Permissions:
+ * - Regular users: see only their own documents
+ * - Admins: see all documents from all users
  */
 router.get('/', auth, async (req, res) => {
   try {
-    // Import User model to get user details
+    // Import User model to include user info in results
     const { User } = await import('../models/User.js');
 
-    // Admin sees all documents, regular users see only their own
-    const whereClause = req.user.role === 'admin' ? {} : { userId: req.user.id };
+    // Build where clause based on user role
+    // Admin: {} (no filter, get all)
+    // User: { userId: req.user.id } (only their documents)
+    const whereClause = req.user.role === 'admin' 
+      ? {} 
+      : { userId: req.user.id };
 
-    // Fetch documents with user information, sorted by upload date (newest first)
+    // Fetch documents from database
     const documents = await Document.findAll({
       where: whereClause,
-      order: [['uploadDate', 'DESC']],
+      order: [['uploadDate', 'DESC']],  // Newest first
       attributes: ['id', 'originalName', 'filename', 'fileSize', 'uploadDate', 'userId'],
       include: [{
         model: User,
-        attributes: ['id', 'username', 'email'],
+        attributes: ['id', 'username', 'email'],  // Include uploader info
         required: true
       }]
     });
 
     res.json({ documents });
+    
   } catch (error) {
     console.error('Error fetching documents:', error);
     res.status(500).json({ error: 'Failed to fetch documents' });
@@ -140,14 +181,48 @@ router.get('/', auth, async (req, res) => {
 /**
  * GET /api/documents/:id
  * Download a specific document
- * Admins can download any document, users can only download their own
- * Requires authentication
+ * 
+ * Requires: Authentication
+ * 
+ * URL parameter:
+ *   :id - Document ID
+ * 
+ * Response: File download
+ * 
+ * Permissions:
+ * - Regular users: can only download their own documents
+ * - Admins: can download any document
  */
 router.get('/:id', auth, async (req, res) => {
   try {
-    // Build where clause - admin can access any, user only their own
+    // Build where clause based on user role
     const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }
+      ? { id: req.params.id }  // Admin can access any document
+      : { id: req.params.id, userId: req.user.id };  // User only their own
+
+    // Find the document
+    const document = await Document.findOne({
+      where: whereClause
+    });
+
+    // Check if document exists in database
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Check if file exists on disk
+    if (!fs.existsSync(document.filePath)) {
+      return res.status(404).json({ error: 'File not found on server' });
+    }
+
+    // Send file for download with original filename
+    res.download(document.filePath, document.originalName);
+    
+  } catch (error) {
+    console.error('Error downloading document:', error);
+    res.status(500).json({ error: 'Failed to download document' });
+  }
+});
       : { id: req.params.id, userId: req.user.id };
 
     const document = await Document.findOne({
@@ -173,34 +248,50 @@ router.get('/:id', auth, async (req, res) => {
 
 /**
  * DELETE /api/documents/:id
- * Delete a document
- * Admins can delete any document, users can only delete their own
- * Requires authentication
+ * Delete a document and its file
+ * 
+ * Requires: Authentication
+ * 
+ * URL parameter:
+ *   :id - Document ID
+ * 
+ * Response: Success message
+ * 
+ * Permissions:
+ * - Regular users: can only delete their own documents
+ * - Admins: can delete any document
+ * 
+ * What happens:
+ * 1. File is deleted from disk
+ * 2. Database record is deleted
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Build where clause - admin can delete any, user only their own
+    // Build where clause based on user role
     const whereClause = req.user.role === 'admin'
-      ? { id: req.params.id }
-      : { id: req.params.id, userId: req.user.id };
+      ? { id: req.params.id }  // Admin can delete any document
+      : { id: req.params.id, userId: req.user.id };  // User only their own
 
+    // Find the document
     const document = await Document.findOne({
       where: whereClause
     });
 
+    // Check if document exists
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Delete file from filesystem
+    // Step 1: Delete physical file from disk
     if (fs.existsSync(document.filePath)) {
       fs.unlinkSync(document.filePath);
     }
 
-    // Delete database record
+    // Step 2: Delete database record
     await document.destroy();
 
     res.json({ message: 'Document deleted successfully' });
+    
   } catch (error) {
     console.error('Error deleting document:', error);
     res.status(500).json({ error: 'Failed to delete document' });
@@ -209,7 +300,18 @@ router.delete('/:id', auth, async (req, res) => {
 
 /**
  * Background function to process document with NLP
- * Runs asynchronously after document upload
+ * 
+ * This function runs asynchronously after a document is uploaded.
+ * It doesn't block the upload response.
+ * 
+ * What it does:
+ * 1. Extracts text from the PDF
+ * 2. Processes the text (tokenize, remove stopwords, lemmatize)
+ * 3. Calculates word frequencies
+ * 4. Finds top 20 most common words
+ * 5. Saves all results to database
+ * 
+ * @param {Document} document - The document to process
  */
 async function processDocumentNLP(document) {
   try {
@@ -218,39 +320,54 @@ async function processDocumentNLP(document) {
     // Run NLP processing on the PDF file
     const nlpResults = await processDocument(document.filePath);
     
-    // Save results to database
+    // Save NLP results to database
     await document.update({
       extractedText: nlpResults.rawText,
       processedTokens: nlpResults.processedTokens,
       wordFrequency: nlpResults.wordFrequency,
       topWords: nlpResults.topWords,
-      nlpProcessed: true
+      nlpProcessed: true  // Mark as complete
     });
     
     console.log(`Document ${document.id} processed successfully`);
+    
   } catch (error) {
-    console.error(`NLP processing failed for document ${document.id}:`, error);
+    console.error(`NLP processing failed for document ${document.id}:`, error.message);
   }
 }
 
 /**
  * GET /api/documents/:id/nlp
- * Get NLP analysis results for a specific document
- * Returns processed text, tokens, and word frequencies
+ * Get NLP analysis results for a document
+ * 
+ * Requires: Authentication
+ * 
+ * URL parameter:
+ *   :id - Document ID
+ * 
+ * Response: NLP analysis data (extracted text, tokens, frequencies, top words)
+ * 
+ * Status codes:
+ * - 200: Analysis complete, data returned
+ * - 202: Still processing, try again later
+ * - 404: Document not found
  */
 router.get('/:id/nlp', auth, async (req, res) => {
   try {
+    // Build where clause based on user role
     const whereClause = req.user.role === 'admin'
       ? { id: req.params.id }
       : { id: req.params.id, userId: req.user.id };
 
+    // Find the document
     const document = await Document.findOne({ where: whereClause });
 
+    // Check if document exists
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // If still processing, return status
+    // If still processing, return status 202 (Accepted, but not ready)
     if (!document.nlpProcessed) {
       return res.status(202).json({ 
         message: 'Document is still being processed',
@@ -258,7 +375,7 @@ router.get('/:id/nlp', auth, async (req, res) => {
       });
     }
 
-    // Return NLP results
+    // Return NLP analysis results
     res.json({
       documentId: document.id,
       originalName: document.originalName,
@@ -268,6 +385,7 @@ router.get('/:id/nlp', auth, async (req, res) => {
       wordFrequency: document.wordFrequency,
       topWords: document.topWords
     });
+    
   } catch (error) {
     console.error('Error fetching NLP data:', error);
     res.status(500).json({ error: 'Failed to fetch NLP analysis' });
@@ -277,21 +395,35 @@ router.get('/:id/nlp', auth, async (req, res) => {
 /**
  * POST /api/documents/:id/reprocess
  * Reprocess a document's NLP analysis
- * Useful if the first processing failed or you want fresh results
+ * 
+ * Requires: Authentication
+ * 
+ * URL parameter:
+ *   :id - Document ID
+ * 
+ * Response: Confirmation that reprocessing started
+ * 
+ * Use cases:
+ * - First processing failed
+ * - Want fresh analysis results
+ * - Updated NLP algorithms
  */
 router.post('/:id/reprocess', auth, async (req, res) => {
   try {
+    // Build where clause based on user role
     const whereClause = req.user.role === 'admin'
       ? { id: req.params.id }
       : { id: req.params.id, userId: req.user.id };
 
+    // Find the document
     const document = await Document.findOne({ where: whereClause });
 
+    // Check if document exists
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Reset status and reprocess
+    // Reset processing status and start reprocessing
     await document.update({ nlpProcessed: false });
     processDocumentNLP(document);
 
@@ -299,6 +431,7 @@ router.post('/:id/reprocess', auth, async (req, res) => {
       message: 'Document reprocessing started',
       documentId: document.id 
     });
+    
   } catch (error) {
     console.error('Error reprocessing document:', error);
     res.status(500).json({ error: 'Failed to reprocess document' });
