@@ -60,6 +60,19 @@ A document management system with NLP analysis for financial PDFs. Users can upl
 
 ## References & Resources
 
+## NLP Results JSON Contract
+
+The backend and NLP pipeline exchange data using a JSON contract defined in [server/contracts/nlpResults.json](server/contracts/nlpResults.json).
+
+- `documentId`: Database ID of the document.
+- `originalName`: Original filename uploaded by the user.
+- `nlpProcessed`: Whether NLP processing is complete.
+- `rawText`: Full extracted text from the PDF.
+- `processedTokens`: Array of cleaned/lemmatized tokens.
+- `wordFrequency`: Map of token → count.
+- `topWords`: Array of the top 20 tokens, each with `{ word, count }`.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 ### Natural Language Processing
 - **Natural Node** - NLP library for Node.js
   - Documentation: https://github.com/NaturalNode/natural
@@ -110,5 +123,15 @@ A document management system with NLP analysis for financial PDFs. Users can upl
 ### File Upload Handling
 - **Multer** - Node.js middleware for multipart/form-data
   - Documentation: https://github.com/expressjs/multer
+
+### Data Retention & Scheduling
+- **node-cron** - Scheduled jobs in Node.js
+  - Documentation: https://www.npmjs.com/package/node-cron
+
+### File Upload Security (Validation & Sanitization)
+- **OWASP File Upload Cheat Sheet**
+  - Guidance: https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+- **file-type** - Detect file signature (magic bytes)
+  - Documentation: https://www.npmjs.com/package/file-type
 
 

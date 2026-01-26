@@ -14,8 +14,11 @@
 import dotenv from 'dotenv';           // Loads environment variables from .env file
 import express from 'express';         // Web server framework
 import cors from 'cors';               // Allows requests from React frontend
+import fs from 'fs';                   // File system for cleanup
+import cron from 'node-cron';          // Task scheduler
+import { Op } from 'sequelize';        // Sequelize operators
 import { sequelize } from './models/User.js';  // Database connection
-import './models/Document.js';         // Load Document model (needed for database relationships)
+import Document from './models/Document.js';   // Document model
 import authRoutes from './routes/auth.js';     // Login/register routes
 import userRoutes from './routes/users.js';    // User management routes
 import documentRoutes from './routes/documents.js';  // Document upload/download routes
@@ -40,6 +43,39 @@ app.use(express.json());
 sequelize.sync()
   .then(() => console.log('Database connected and synced'))
   .catch((err) => console.error('Database connection error:', err));
+
+// Simple cleanup task: delete documents older than 6 months
+// Runs once at startup and daily at 3:00 AM
+const deleteExpiredDocuments = async () => {
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 6);
+
+  const expired = await Document.findAll({
+    where: {
+      [Op.or]: [
+        { expiresAt: { [Op.lte]: now } },
+        { expiresAt: null, uploadDate: { [Op.lte]: cutoff } }
+      ]
+    }
+  });
+
+  for (const doc of expired) {
+    if (doc.filePath && fs.existsSync(doc.filePath)) {
+      fs.unlinkSync(doc.filePath);
+    }
+    await doc.destroy();
+  }
+
+  if (expired.length > 0) {
+    console.log(`Deleted ${expired.length} expired document(s)`);
+  }
+};
+
+deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
+cron.schedule('0 3 * * *', () => {
+  deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
+});
 
 // --- ROUTE SETUP ---
 // Tell Express where to send different types of requests

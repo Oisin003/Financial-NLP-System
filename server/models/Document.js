@@ -68,6 +68,12 @@ const Document = sequelize.define('Document', {
     allowNull: false,
     defaultValue: DataTypes.NOW  // Automatically set to current time
   },
+
+  // When the document should be deleted (6 months after upload) May change depending on what Helix says
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   
   // --- NLP PROCESSING RESULTS ---
   
@@ -131,6 +137,7 @@ const Document = sequelize.define('Document', {
   tableName: 'documents',
   timestamps: true  // Automatically add createdAt and updatedAt fields
 });
+
 
 // --- DATABASE RELATIONSHIPS ---
 // A Document belongs to one User (the uploader)

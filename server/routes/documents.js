@@ -111,6 +111,9 @@ router.post('/upload', auth, upload.single('document'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 6); // Set expiration to 6 months from now
+
     // Create database record for the uploaded file
     const document = await Document.create({
       originalName: req.file.originalname,  // User's filename
@@ -118,7 +121,8 @@ router.post('/upload', auth, upload.single('document'), async (req, res) => {
       filePath: req.file.path,              // Full path on server
       fileSize: req.file.size,              // Size in bytes
       userId: req.user.id,                  // Who uploaded it
-      uploadDate: new Date()                // When it was uploaded
+      uploadDate: new Date(),                // When it was uploaded
+      expiresAt                             // Expires in 6 months
     });
 
     // Start NLP processing in the background (async, don't wait)

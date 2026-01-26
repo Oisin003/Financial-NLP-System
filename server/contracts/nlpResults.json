@@ -1,0 +1,66 @@
+{
+    "title": "NLPResults",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "rawText",
+        "processedTokens",
+        "wordFrequency",
+        "topWords",
+        "nlpProcessed"
+    ],
+    "properties": {
+        "documentId": {
+            "type": "integer",
+            "description": "Database ID of the document."
+        },
+        "originalName": {
+            "type": "string",
+            "description": "Original filename uploaded by the user."
+        },
+        "nlpProcessed": {
+            "type": "boolean",
+            "description": "True when NLP processing is complete."
+        },
+        "rawText": {
+            "type": "string",
+            "description": "Full extracted text from the PDF."
+        },
+        "processedTokens": {
+            "type": "array",
+            "description": "Tokens after cleaning and lemmatization.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "wordFrequency": {
+            "type": "object",
+            "description": "Map of token to count.",
+            "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+            }
+        },
+        "topWords": {
+            "type": "array",
+            "description": "Top 20 tokens by frequency.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "word",
+                    "count"
+                ],
+                "properties": {
+                    "word": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                }
+            }
+        }
+    }
+}
