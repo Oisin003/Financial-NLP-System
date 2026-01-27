@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tika-config>
+<properties>
   <parsers>
     <parser class="org.apache.tika.parser.DefaultParser">
       <params>
@@ -9,5 +9,5 @@
       </params>
     </parser>
   </parsers>
-</tika-config>
+</properties>
 <!-- https://www.tutorialspoint.com/tika/tika_overview.htm -->

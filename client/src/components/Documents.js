@@ -12,6 +12,7 @@ import EmptyDocuments from './EmptyDocuments';
 import DocumentStatistics from './DocumentStatistics';
 import { useDocuments } from '../hooks/useDocuments';
 import { groupDocumentsByMonth } from '../utils/documentUtils';
+import './Documents.css';
 
 function Documents() {
   // Get all document data and functions from custom hook
@@ -156,31 +157,6 @@ function Documents() {
         </div>
       )}
 
-      {/* Modal Styling */}
-      <style jsx>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .modal-content {
-          background: white;
-          border-radius: 8px;
-          max-width: 1200px;
-          width: 100%;
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-      `}</style>
     </div>
   );
 }

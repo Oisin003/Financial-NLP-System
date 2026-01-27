@@ -118,6 +118,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
 
+// Fallback 404 handler to surface missing routes in logs
+app.use((req, res) => {
+  console.warn('404 Not Found:', req.method, req.originalUrl);
+  res.status(404).json({ error: 'Not found' });
+});
+
 // --- START SERVER ---
 // Use PORT from environment variables, or default to 5000 (matches client proxy)
 const PORT = process.env.PORT || 5000;

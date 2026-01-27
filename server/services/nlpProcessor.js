@@ -68,17 +68,28 @@ const extractTextWithTika = async (filePath, options = {}) => {
     headers['X-Tika-OCRLanguage'] = 'eng';
   }
 
-  const response = await fetch(TIKA_URL, {
-    method: 'PUT',
-    headers,
-    body: dataBuffer
-  });
+  try {
+    const response = await fetch(TIKA_URL, {
+      method: 'PUT',
+      headers,
+      body: dataBuffer
+    });
 
-  if (!response.ok) {
-    throw new Error(`Tika extraction failed (${response.status})`);
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`Tika extraction failed (${response.status})${errorBody ? `: ${errorBody}` : ''}`);
+    }
+
+    return response.text();
+  } catch (error) {
+    console.error('Tika fetch failed', {
+      tikaUrl: TIKA_URL,
+      filePath,
+      useOcr,
+      error: error?.message || String(error)
+    });
+    throw error;
   }
-
-  return response.text();
 };
 
 /**
