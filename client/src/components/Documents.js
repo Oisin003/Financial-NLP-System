@@ -2,18 +2,6 @@
  * Documents Component
  * 
  * Main page showing all uploaded documents
- * 
- * Features:
- * - View all your uploaded documents
- * - Documents organized by month
- * - Download, analyze, or delete documents
- * - See statistics about your uploads
- * 
- * This component acts as a container that brings together:
- * - Document fetching (useDocuments hook)
- * - Document display (DocumentCard component)
- * - Statistics (DocumentStatistics component)
- * - Empty state (EmptyDocuments component)
  */
 
 import React, { useState } from 'react';
@@ -27,18 +15,18 @@ import { groupDocumentsByMonth } from '../utils/documentUtils';
 
 function Documents() {
   // Get all document data and functions from custom hook
-  const { 
-    documents, 
-    loading, 
-    error, 
-    deletingId, 
-    currentUser, 
-    handleDelete 
+  const {
+    documents,
+    loading,
+    error,
+    deletingId,
+    currentUser,
+    handleDelete
   } = useDocuments();
-  
+
   // Track which document's NLP analysis is being viewed
   const [selectedDocumentForNLP, setSelectedDocumentForNLP] = useState(null);
-  
+
   // Navigation function
   const navigate = useNavigate();
 
@@ -74,7 +62,7 @@ function Documents() {
 
   // Organize documents by month for folder-like display
   const groupedDocuments = groupDocumentsByMonth(documents);
-  
+
   // Check if user has any documents
   const hasDocuments = documents.length > 0;
 
@@ -91,14 +79,14 @@ function Documents() {
                 {currentUser?.role === 'admin' ? 'All Documents' : 'My Documents'}
               </h2>
               <p className="text-muted mb-0">
-                {currentUser?.role === 'admin' 
-                  ? 'Manage all documents across the organization' 
+                {currentUser?.role === 'admin'
+                  ? 'Manage all documents across the organization'
                   : 'Your financial documents organized by month'}
               </p>
             </div>
-            
+
             {/* Right side: Upload button */}
-            <button 
+            <button
               className="btn btn-primary"
               onClick={() => navigate('/upload-document')}
             >
@@ -128,7 +116,7 @@ function Documents() {
               <span className="badge bg-light text-primary">{docs.length} documents</span>
             </div>
           </div>
-          
+
           {/* Grid of document cards for this month */}
           <div className="card-body">
             <div className="row">
@@ -149,9 +137,9 @@ function Documents() {
 
       {/* Statistics section (only show if there are documents) */}
       {hasDocuments && (
-        <DocumentStatistics 
-          documents={documents} 
-          groupedDocuments={groupedDocuments} 
+        <DocumentStatistics
+          documents={documents}
+          groupedDocuments={groupedDocuments}
         />
       )}
 
@@ -159,7 +147,7 @@ function Documents() {
       {selectedDocumentForNLP && (
         <div className="modal-overlay" onClick={() => setSelectedDocumentForNLP(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <NLPAnalysis 
+            <NLPAnalysis
               documentId={selectedDocumentForNLP.id}
               documentName={selectedDocumentForNLP.name}
               onClose={() => setSelectedDocumentForNLP(null)}

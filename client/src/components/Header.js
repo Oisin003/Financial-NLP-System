@@ -2,18 +2,6 @@
  * Header Component - Top Navigation Bar
  * 
  * This is the navigation bar shown at the top of every page.
- * 
- * Features:
- * - Company logo and branding
- * - Dynamic navigation based on user login status
- * - Shows username and role (admin badge)
- * - Different links for regular users vs admins
- * - Logout button
- * - Responsive mobile menu (collapses on small screens)
- * 
- * Props:
- * - user: Current logged-in user object (or null if not logged in)
- * - onLogout: Function to call when logout button is clicked
  */
 
 import React from 'react';

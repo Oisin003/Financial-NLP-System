@@ -1,12 +1,6 @@
 /**
  * Main App Component - Entry Point for the React Application
  * 
- * This is the root component that manages:
- * - User authentication state (who is logged in)
- * - Routing (which page to show)
- * - Protected routes (require login)
- * - Persistent login (stays logged in after page refresh)
- * 
  * How it works:
  * 1. On load, checks localStorage for saved login info
  * 2. If found, automatically logs user in

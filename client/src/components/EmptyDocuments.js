@@ -1,16 +1,5 @@
 /**
  * EmptyDocuments Component
- * 
- * Friendly empty state displayed when user has no documents yet
- * Shows:
- * - Large inbox icon
- * - Encouraging message
- * - Big "Upload First Document" button
- * 
- * Purpose: Guide new users to take their first action
- * 
- * Props:
- * - onUploadClick: Function to navigate to upload page
  */
 
 import React from 'react';

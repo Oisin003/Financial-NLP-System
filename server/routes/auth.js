@@ -2,48 +2,35 @@
  * Authentication Routes - Login and Registration
  * 
  * This file handles user sign-up and login.
- * 
- * Endpoints:
- * - POST /api/auth/register - Create a new user account
- * - POST /api/auth/login    - Log in with email and password
- * 
- * Both endpoints return a JWT token that the frontend uses
- * for authentication on subsequent requests.
  */
 
 import express from 'express';
 import { body, validationResult } from 'express-validator';  // Input validation
 import jwt from 'jsonwebtoken';  // Create authentication tokens
 import { User } from '../models/User.js';
-import { Op } from 'sequelize';  // Database operators (OR, AND, etc.)
+import { Op } from 'sequelize';  // Database operators 
 
 const router = express.Router();
 
 // --- PASSWORD VALIDATION RULES ---
-// These rules are checked before creating/updating a user
+// These rules are checked before creating a user
 const passwordValidation = [
   body('password')
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-    .matches(/[A-Z]/).withMessage('Password must contain uppercase letter')
-    .matches(/[a-z]/).withMessage('Password must contain lowercase letter')
-    .matches(/[0-9]/).withMessage('Password must contain number')
-    .matches(/[@$!%*?&#]/).withMessage('Password must contain special character')
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain a lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain a number')
+    .matches(/[@$!%*?&#]/).withMessage('Password must contain a special character')
 ];
 
 /**
  * POST /api/auth/register
  * Create a new user account
- * 
- * Request body:
- *   { username, email, password }
- * 
- * Response:
- *   { token, user: { id, username, email, role } }
  */
 router.post('/register', [
   // Validation rules for registration
-  body('username').trim().isLength({ min: 4 }).withMessage('Username must be at least 4 characters'),
-  body('email').isEmail().withMessage('Please provide a valid email'),
+  body('username').trim().isLength({ min: 4 }).withMessage('Please provide a valid username (at least 4 characters)'),
+  body('email').isEmail().withMessage('Please provide a valid email format'),
   ...passwordValidation  // Include all password rules
 ], async (req, res) => {
   try {
@@ -55,19 +42,19 @@ router.post('/register', [
 
     const { username, email, password } = req.body;
 
-    // Step 2: Check if user already exists (by email OR username)
-    let user = await User.findOne({ 
-      where: { 
-        [Op.or]: [{ email }, { username }] 
-      } 
+    // Step 2: Check if user already exists
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [{ email }, { username }]
+      }
     });
-    
-    if (user) {
+
+    if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
     // Step 3: Create new user (password is automatically hashed by User model)
-    user = await User.create({ username, email, password });
+    const user = await User.create({ username, email, password });
 
     // Step 4: Generate JWT token (expires in 7 days)
     const token = jwt.sign(
@@ -96,16 +83,10 @@ router.post('/register', [
 /**
  * POST /api/auth/login
  * Log in to an existing account
- * 
- * Request body:
- *   { email, password }
- * 
- * Response:
- *   { token, user: { id, username, email, role } }
  */
 router.post('/login', [
   // Validation rules for login
-  body('email').isEmail().withMessage('Please provide a valid email'),
+  body('email').isEmail().withMessage('Please provide a valid email format'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {

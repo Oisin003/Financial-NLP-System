@@ -7,14 +7,6 @@
  * - Uploader info (for admins)
  * - File size and upload date
  * - Action buttons: Download, NLP Analysis, Delete
- * 
- * Props:
- * - doc: Document object from database
- * - currentUser: Logged-in user info (to show uploader for admins)
- * - onDownload: Function to download the document
- * - onNLPClick: Function to open NLP analysis
- * - onDelete: Function to delete the document
- * - deletingId: ID of document currently being deleted (for spinner)
  */
 
 import React from 'react';
@@ -31,12 +23,12 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
               <i className="bi bi-file-earmark-pdf-fill text-danger" style={{ fontSize: '2.5rem' }}></i>
             </div>
           </div>
-          
+
           {/* File name (truncated if too long) */}
           <h6 className="text-center text-truncate" title={doc.originalName}>
             {doc.originalName}
           </h6>
-          
+
           {/* Show who uploaded it (admins only) */}
           {currentUser?.role === 'admin' && doc.User && (
             <div className="text-center mb-2">
@@ -48,7 +40,7 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
               </div>
             </div>
           )}
-          
+
           {/* File size and date information */}
           <div className="text-center mb-3">
             {/* File size with hard drive icon */}
@@ -62,7 +54,7 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
               {formatDate(doc.uploadDate)}
             </small>
           </div>
-          
+
           {/* Action buttons (full width) */}
           <div>
             {/* Download button */}
@@ -74,7 +66,7 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
               <i className="bi bi-download me-1"></i>
               Download
             </button>
-            
+
             {/* NLP Analysis button */}
             <button
               className="btn btn-info btn-sm w-100 mb-2"
@@ -84,7 +76,7 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
               <i className="bi bi-graph-up me-1"></i>
               NLP Analysis
             </button>
-            
+
             {/* Delete button (with confirmation) */}
             <button
               className="btn btn-outline-danger btn-sm w-100"

@@ -1,17 +1,5 @@
 /**
  * Admin User Creator Script
- * 
- * This is a simple utility script to create an admin user in the database.
- * Run this once when setting up the system for the first time.
- * 
- * How to run:
- *   node createAdmin.js
- * 
- * What it does:
- * 1. Connects to the database
- * 2. Checks if an admin user already exists
- * 3. If not, creates a new admin user with default credentials
- * 4. Prints the login details to the console
  */
 
 // Import required packages
@@ -31,8 +19,8 @@ const createAdmin = async () => {
     console.log('Connected to the database');
 
     // Step 2: Check if an admin user already exists
-    const existingAdmin = await User.findOne({ 
-      where: { role: 'admin' } 
+    const existingAdmin = await User.findOne({
+      where: { role: 'admin' }
     });
     
     // If admin exists, show their details and exit

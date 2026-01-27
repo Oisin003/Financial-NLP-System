@@ -1,9 +1,5 @@
 /**
  * Upload Document Component
- * 
- * This is the main page where users can upload PDF documents.
- * After upload, the document is automatically processed with NLP
- * to extract text, identify keywords, and analyze word frequency.
  */
 
 import React from 'react';

@@ -2,18 +2,6 @@
  * Login Component - User Login Page
  * 
  * This is the page where users sign in to their account.
- * 
- * Features:
- * - Simple login form with email and password
- * - Error message display
- * - Loading spinner during login
- * - Link to registration page for new users
- * - Calls backend API to authenticate
- * - On success, stores JWT token and redirects to dashboard
- * 
- * Props:
- * - onLogin: Function to call when login is successful
- *            (receives user data and JWT token)
  */
 
 import React, { useState } from 'react';

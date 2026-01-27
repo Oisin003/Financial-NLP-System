@@ -1,22 +1,14 @@
 /**
  * Alert Message Component
  * 
- * Displays user-friendly alerts for success, errors, warnings, and info messages
- * 
- * Usage:
- *   <AlertMessage 
- *     message={{ type: 'success', text: 'Upload complete!' }} 
- *     onClose={() => handleClose()} 
- *   />
- * 
- * Message types: 'success', 'danger', 'warning', 'info'
+ * Displays alerts for success, errors, warnings, and info messages
  */
 
 import React from 'react';
 import { getAlertIcon, getAlertClass } from '../utils/alertUtils';
 
 function AlertMessage({ message, onClose }) {
-  // Don't render anything if there's no message to show
+  // Don't render anything if there's no message to show !!!!!
   if (!message.text) return null;
 
   // Get the appropriate icon and styling for this message type

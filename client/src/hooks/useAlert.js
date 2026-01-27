@@ -3,20 +3,8 @@ import { ALERT_TYPES } from '../utils/alertUtils';
 
 /**
  * Custom Hook for Managing Alert Messages
- * 
- * Makes it super easy to show success/error/warning/info messages in your components
- * 
- * Usage Example:
- *   const { message, showSuccess, showError, clearMessage } = useAlert();
- *   
- *   // Show a success message
- *   showSuccess('File uploaded successfully!');
- *   
- *   // Show an error
- *   showError('Upload failed. Please try again.');
- *   
- *   // In your JSX:
- *   <AlertMessage message={message} onClose={clearMessage} />
+ * Provides functions to show different types of alerts (success, error, warning, info)
+ * and to clear the current alert message.
  */
 export function useAlert() {
   // Store the current alert message and type

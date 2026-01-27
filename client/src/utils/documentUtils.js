@@ -9,14 +9,6 @@ import API_URL from '../config';
 
 /**
  * Convert bytes to human-readable file size
- * 
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted file size (e.g., "2.5 MB", "150 KB")
- * 
- * Examples:
- * - 500 bytes → "500 B"
- * - 2048 bytes → "2.00 KB"
- * - 1048576 bytes → "1.00 MB"
  */
 export const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B';
@@ -28,7 +20,7 @@ export const formatFileSize = (bytes) => {
  * Format date for display in user interface
  * 
  * @param {string} dateString - ISO date string from database
- * @returns {string} Formatted date (e.g., "21 Jan 2026, 10:30 AM")
+ * @returns {string} Formatted date 
  * 
  * Shows: day, short month, year, hours, minutes
  */
@@ -47,7 +39,7 @@ export const formatDate = (dateString) => {
  * Group documents by their upload month and year
  * 
  * @param {Array} documents - Array of document objects with uploadDate
- * @returns {Object} Documents grouped by month (e.g., { "January 2026": [...docs] })
+ * @returns {Object} Documents grouped by month 
  * 
  * Purpose: Organize documents into monthly folders for better navigation
  */

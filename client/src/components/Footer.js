@@ -2,17 +2,6 @@
  * Footer Component - Bottom Site Footer
  * 
  * This is the footer shown at the bottom of every page.
- * 
- * Features:
- * - Company branding and tagline
- * - Quick navigation links
- * - Contact information
- * - Social media links
- * - Copyright notice
- * - Legal links (Privacy Policy, Terms of Service)
- * - Responsive layout (stacks on mobile)
- * 
- * Uses Bootstrap grid system for responsive columns
  */
 
 import React from 'react';

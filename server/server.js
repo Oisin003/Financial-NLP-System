@@ -16,7 +16,7 @@ import express from 'express';         // Web server framework
 import cors from 'cors';               // Allows requests from React frontend
 import fs from 'fs';                   // File system for cleanup
 import cron from 'node-cron';          // Task scheduler
-import { Op } from 'sequelize';        // Sequelize operators
+import { Op, DataTypes } from 'sequelize';        // Sequelize operators
 import { sequelize } from './models/User.js';  // Database connection
 import Document from './models/Document.js';   // Document model
 import authRoutes from './routes/auth.js';     // Login/register routes
@@ -40,9 +40,27 @@ app.use(express.json());
 
 // --- DATABASE CONNECTION ---
 // Connect to SQLite database and create tables if they don't exist
-sequelize.sync()
-  .then(() => console.log('Database connected and synced'))
-  .catch((err) => console.error('Database connection error:', err));
+const ensureDocumentsSchema = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    const tables = await queryInterface.showAllTables();
+
+    // If the documents table does not exist yet, stop here
+    if (!tables.includes('documents')) {
+      return;
+    }
+
+    const table = await queryInterface.describeTable('documents');
+    if (!table.expiresAt) {
+      await queryInterface.addColumn('documents', 'expiresAt', {
+        type: DataTypes.DATE,
+        allowNull: true
+      });
+    }
+  } catch (error) {
+    console.error('Schema check error:', error);
+  }
+};
 
 // Simple cleanup task: delete documents older than 6 months
 // Runs once at startup and daily at 3:00 AM
@@ -51,7 +69,7 @@ const deleteExpiredDocuments = async () => {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 6);
 
-  const expired = await Document.findAll({
+  const expiredDocuments = await Document.findAll({
     where: {
       [Op.or]: [
         { expiresAt: { [Op.lte]: now } },
@@ -60,22 +78,29 @@ const deleteExpiredDocuments = async () => {
     }
   });
 
-  for (const doc of expired) {
-    if (doc.filePath && fs.existsSync(doc.filePath)) {
-      fs.unlinkSync(doc.filePath);
+  for (const document of expiredDocuments) {
+    if (document.filePath && fs.existsSync(document.filePath)) {
+      fs.unlinkSync(document.filePath);
     }
-    await doc.destroy();
+    await document.destroy();
   }
 
-  if (expired.length > 0) {
-    console.log(`Deleted ${expired.length} expired document(s)`);
+  if (expiredDocuments.length > 0) {
+    console.log(`Deleted ${expiredDocuments.length} expired document(s)`);
   }
 };
 
-deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
-cron.schedule('0 3 * * *', () => {
-  deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
-});
+sequelize.sync()
+  .then(async () => {
+    console.log('Database connected and synced');
+    await ensureDocumentsSchema();
+
+    deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
+    cron.schedule('0 3 * * *', () => {
+      deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
+    });
+  })
+  .catch((err) => console.error('Database connection error:', err));
 
 // --- ROUTE SETUP ---
 // Tell Express where to send different types of requests

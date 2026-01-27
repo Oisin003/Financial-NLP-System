@@ -1,82 +1,88 @@
 # Financial-NLP-System
 
-A document management system with NLP analysis for financial PDFs. Users can upload financial documents, which are automatically processed to extract key terms, word frequencies, and meaningful insights.
+## File Overview (Brief)
 
-## Project Structure
+### Root
+- [package.json](package.json): Workspace scripts and shared deps.
+- [README.md](README.md): Project notes and references.
 
-### Server (Backend)
+### Server
+- [server/package.json](server/package.json): Server deps and scripts.
+- [server/server.js](server/server.js): Express app, DB init, routes, cleanup job.
+- [server/createAdmin.js](server/createAdmin.js): One‑off admin user creator.
+- [server/tika-config.xml](server/tika-config.xml): Tika OCR configuration.
 
-#### Core Files
-- **server.js** - Main server entry point; sets up Express, connects database, configures routes
-- **createAdmin.js** - Utility script to create admin user account (run once during setup)
-- **package.json** - Server dependencies and npm scripts
+#### Server Models
+- [server/models/User.js](server/models/User.js): User schema + auth helpers.
+- [server/models/Document.js](server/models/Document.js): Document schema + NLP fields.
 
-#### Models (`server/models/`)
-- **User.js** - User database schema; handles authentication, password hashing with bcrypt
-- **Document.js** - Document database schema; stores PDF metadata and NLP analysis results
+#### Server Routes
+- [server/routes/auth.js](server/routes/auth.js): Login and registration endpoints.
+- [server/routes/users.js](server/routes/users.js): Admin user management endpoints.
+- [server/routes/documents.js](server/routes/documents.js): Upload, download, NLP endpoints.
 
-#### Routes (`server/routes/`)
-- **auth.js** - Login and registration endpoints; JWT token generation
-- **users.js** - User management endpoints (list, delete users); admin operations
-- **documents.js** - Document upload, download, delete, and NLP analysis endpoints
+#### Server Middleware
+- [server/middleware/auth.js](server/middleware/auth.js): JWT auth guard.
 
-#### Middleware (`server/middleware/`)
-- **auth.js** - JWT authentication middleware; protects routes, verifies user permissions
+#### Server Services
+- [server/services/nlpProcessor.js](server/services/nlpProcessor.js): Text extraction + NLP pipeline.
 
-#### Services (`server/services/`)
-- **nlpProcessor.js** - NLP analysis engine; extracts text from PDFs, tokenizes, removes stopwords, calculates word frequencies
+#### Server Tests
+- [server/tests/auth.test.js](server/tests/auth.test.js): Auth route tests.
+- [server/tests/documents.test.js](server/tests/documents.test.js): Document route tests.
+- [server/tests/users.test.js](server/tests/users.test.js): User route tests.
 
-### Client (Frontend)
+#### Server Contracts
+- [server/contracts/nlpResults.json](server/contracts/nlpResults.json): NLP results JSON contract.
 
-#### Core Files
-- **App.js** - Main React component; manages routing, authentication state, protected routes
-- **index.js** - React app entry point; renders App component
-- **config.js** - Configuration file with backend API URL
-- **package.json** - Client dependencies and npm scripts
+### Client
+- [client/package.json](client/package.json): Client deps and scripts.
+- [client/public/index.html](client/public/index.html): HTML entry point.
+- [client/public/manifest.json](client/public/manifest.json): PWA metadata.
 
-#### Components (`client/src/components/`)
-- **Header.js** - Top navigation bar; shows user info, logout button, dynamic menu
-- **Footer.js** - Site footer with company info and links
-- **Login.js** - Login form; authenticates users, stores JWT token
-- **Register.js** - Registration form; creates new user accounts with password validation
-- **Dashboard.js** - Main dashboard after login; overview of system features
-- **Documents.js** - Document list page; displays user's uploaded documents
-- **UploadDocument.js** - File upload page; handles PDF uploads with drag-and-drop
-- **AdminPanel.js** - Admin-only page; user management, system statistics
-- **NLPAnalysis.js** - Displays NLP analysis results for a document
-- **DocumentCard.js** - Individual document card component for document list
-- **AlertMessage.js** - Reusable alert/notification component
-- **Logo.js** - Company logo SVG component
+#### Client Entry
+- [client/src/index.js](client/src/index.js): React bootstrap.
+- [client/src/App.js](client/src/App.js): Routes and app layout.
+- [client/src/config.js](client/src/config.js): API base URL.
+- [client/src/index.css](client/src/index.css): Global styles.
+- [client/src/App.css](client/src/App.css): App styles.
+- [client/src/reportWebVitals.js](client/src/reportWebVitals.js): Perf reporting.
+- [client/src/setupTests.js](client/src/setupTests.js): Test setup.
 
-#### Hooks (`client/src/hooks/`)
-- **useAlert.js** - Custom hook for managing alert messages
-- **useDocuments.js** - Custom hook for fetching and managing documents
-- **useFileUpload.js** - Custom hook for handling file upload logic
+#### Client Components
+- [client/src/components/AdminPanel.js](client/src/components/AdminPanel.js): Admin user management UI.
+- [client/src/components/AlertMessage.js](client/src/components/AlertMessage.js): Reusable alert UI.
+- [client/src/components/Dashboard.js](client/src/components/Dashboard.js): Main dashboard UI.
+- [client/src/components/DocumentCard.js](client/src/components/DocumentCard.js): Document list card.
+- [client/src/components/Documents.js](client/src/components/Documents.js): Document list page.
+- [client/src/components/DocumentStatistics.js](client/src/components/DocumentStatistics.js): Document stats UI.
+- [client/src/components/EmptyDocuments.js](client/src/components/EmptyDocuments.js): Empty state UI.
+- [client/src/components/FileDropZone.js](client/src/components/FileDropZone.js): Drag‑and‑drop upload area.
+- [client/src/components/Footer.js](client/src/components/Footer.js): Footer UI.
+- [client/src/components/Header.js](client/src/components/Header.js): Header/nav UI.
+- [client/src/components/Login.js](client/src/components/Login.js): Login form.
+- [client/src/components/Logo.js](client/src/components/Logo.js): Logo SVG.
+- [client/src/components/NLPAnalysis.js](client/src/components/NLPAnalysis.js): NLP modal container.
+- [client/src/components/NLPAnalysisView.js](client/src/components/NLPAnalysisView.js): NLP modal UI.
+- [client/src/components/NLPAnalysis.styles.js](client/src/components/NLPAnalysis.styles.js): NLP modal styles.
+- [client/src/components/Register.js](client/src/components/Register.js): Registration form.
+- [client/src/components/SelectedFileCard.js](client/src/components/SelectedFileCard.js): Selected file preview.
+- [client/src/components/UploadDocument.js](client/src/components/UploadDocument.js): Upload page.
+- [client/src/components/UploadGuidelines.js](client/src/components/UploadGuidelines.js): Upload tips UI.
 
-#### Utils (`client/src/utils/`)
-- **alertUtils.js** - Alert type constants and helper functions for styling
-- **documentUtils.js** - Document-related utility functions
-- **fileUtils.js** - File validation and formatting utilities
+#### Client Hooks
+- [client/src/hooks/useAlert.js](client/src/hooks/useAlert.js): Alert state hook.
+- [client/src/hooks/useDocuments.js](client/src/hooks/useDocuments.js): Documents data hook.
+- [client/src/hooks/useFileUpload.js](client/src/hooks/useFileUpload.js): Upload state hook.
 
-## References & Resources
+#### Client Utils
+- [client/src/utils/alertUtils.js](client/src/utils/alertUtils.js): Alert helpers.
+- [client/src/utils/documentUtils.js](client/src/utils/documentUtils.js): Document helpers.
+- [client/src/utils/fileUtils.js](client/src/utils/fileUtils.js): File helpers.
 
-## NLP Results JSON Contract
+### Scripts
+- [scripts/startTika.js](scripts/startTika.js): Starts Tika server with config.
 
-The backend and NLP pipeline exchange data using a JSON contract defined in [server/contracts/nlpResults.json](server/contracts/nlpResults.json).
-
-- `documentId`: Database ID of the document.
-- `originalName`: Original filename uploaded by the user.
-- `nlpProcessed`: Whether NLP processing is complete.
-- `rawText`: Full extracted text from the PDF.
-- `processedTokens`: Array of cleaned/lemmatized tokens.
-- `wordFrequency`: Map of token → count.
-- `topWords`: Array of the top 20 tokens, each with `{ word, count }`.
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-### Natural Language Processing
-- **Natural Node** - NLP library for Node.js
-  - Documentation: https://github.com/NaturalNode/natural
-  - Lancaster Stemming Algorithm: Porter, M.F. (1980). "An algorithm for suffix stripping"
   
 - **Tokenization Concepts**
   - Manning, C. D., & Schütze, H. (1999). *Foundations of Statistical Natural Language Processing*. MIT Press.
@@ -89,9 +95,22 @@ The backend and NLP pipeline exchange data using a JSON contract defined in [ser
 - **pdf-parse Library**
   - GitHub: https://github.com/modesty/pdf-parse
   - Uses Mozilla's PDF.js for parsing
-  
-- **PDF.js** - Mozilla's PDF rendering engine
-  - Documentation: https://mozilla.github.io/pdf.js/
+
+### Tika, OCR, and Tesseract
+- **Apache Tika**
+  - Download: https://tika.apache.org/download.html
+  - Server: https://cwiki.apache.org/confluence/display/TIKA/TikaServer
+- **Tesseract OCR** (Windows builds)
+  - Downloads: https://github.com/UB-Mannheim/tesseract/wiki
+- **Tesseract OCR** (Official)
+  - Project: https://github.com/tesseract-ocr/tesseract
+
+- **React (W3Schools)**: https://www.w3schools.com/react/
+- **SQL (W3Schools)**: https://www.w3schools.com/sql/
+- **Node.js (GeeksforGeeks)**: https://www.geeksforgeeks.org/nodejs/
+- **Express.js (GeeksforGeeks)**: https://www.geeksforgeeks.org/express-js/
+- **JWT (GeeksforGeeks)**: https://www.geeksforgeeks.org/json-web-token-jwt/
+- **bcrypt (GeeksforGeeks)**: https://www.geeksforgeeks.org/bcrypt-hashing-in-nodejs/
 
 ### Web Development Frameworks
 - **React Documentation**
@@ -114,7 +133,6 @@ The backend and NLP pipeline exchange data using a JSON contract defined in [ser
 
 ### Authentication & Security
 - **JSON Web Tokens (JWT)**
-  - RFC 7519: https://datatracker.ietf.org/doc/html/rfc7519
   - jwt.io: https://jwt.io/introduction
   
 - **bcrypt** - Password hashing

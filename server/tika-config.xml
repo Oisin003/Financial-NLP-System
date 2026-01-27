@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tika-config>
+  <parsers>
+    <parser class="org.apache.tika.parser.DefaultParser">
+      <params>
+        <param name="enableImageProcessing" type="bool">true</param>
+        <param name="ocrStrategy" type="string">auto</param>
+        <param name="tesseractPath" type="string">C:\Program Files\Tesseract-OCR</param>
+      </params>
+    </parser>
+  </parsers>
+</tika-config>
+<!-- https://www.tutorialspoint.com/tika/tika_overview.htm -->

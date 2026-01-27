@@ -4,9 +4,10 @@
   "description": "Achilles Ltd - Financial NLP System",
   "main": "server/server.js",
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"npm run tika\" \"npm run server\" \"npm run client\"",
     "server": "cd server && node server.js",
-    "client": "cd client && npm start"
+    "client": "cd client && npm start",
+    "tika": "node scripts/startTika.js"
   },
   "license": "ISC",
   "dependencies": {

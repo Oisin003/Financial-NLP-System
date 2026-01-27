@@ -15,11 +15,11 @@ function Dashboard({ user }) {
                 Welcome to Your Dashboard
               </h2>
             </div>
-            
+
             <div className="card-body p-4">
               <div className="d-flex align-items-center mb-4">
-                <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
-                     style={{width: '60px', height: '60px', fontSize: '1.5rem'}}>
+                <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                  style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>
                   <i className="bi bi-person-circle"></i>
                 </div>
                 <div>

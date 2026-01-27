@@ -3,15 +3,6 @@
  * 
  * This file creates the "Documents" table in the database.
  * Each row represents one uploaded PDF document.
- * 
- * What it stores:
- * - File information (name, path, size)
- * - Who uploaded it (userId)
- * - When it was uploaded (uploadDate)
- * - NLP analysis results (extracted text, keywords, word frequencies)
- * 
- * The NLP data is stored as JSON strings in the database
- * and automatically converted to JavaScript objects when you read them.
  */
 
 import { DataTypes } from 'sequelize';
@@ -20,33 +11,33 @@ import { sequelize, User } from './User.js';
 // --- DOCUMENT TABLE DEFINITION ---
 const Document = sequelize.define('Document', {
   
-  // Unique ID for each document (automatically generated)
+  // Unique ID for each document 
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
   
-  // Original filename when user uploaded it (e.g., "Financial_Report_2024.pdf")
+  // Original filename when user uploaded it 
   originalName: {
     type: DataTypes.STRING,
     allowNull: false
   },
   
-  // Unique filename stored on server (prevents name conflicts)
+  // Unique filename stored on server 
   filename: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true  // No two files can have the same stored filename
   },
   
-  // Full path to file on server (e.g., "/uploads/documents/abc123.pdf")
+  // Full path to file on server 
   filePath: {
     type: DataTypes.STRING,
     allowNull: false
   },
   
-  // File size in bytes (for display and storage management)
+  // File size in bytes 
   fileSize: {
     type: DataTypes.INTEGER,
     allowNull: false
@@ -62,7 +53,7 @@ const Document = sequelize.define('Document', {
     }
   },
   
-  // When the document was uploaded (used for monthly grouping in UI)
+  // When the document was uploaded 
   uploadDate: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -83,30 +74,36 @@ const Document = sequelize.define('Document', {
     allowNull: true  // Optional - only filled after NLP processing
   },
   
-  // Processed tokens (cleaned words from the document)
-  // Stored as JSON array: ["finance", "report", "revenue", ...]
+  // Processed tokens
+  // Stored as JSON array
   processedTokens: {
     type: DataTypes.TEXT,
     allowNull: true,
     // Automatically convert between JSON string (database) and JavaScript array (code)
     get() {
       const value = this.getDataValue('processedTokens');
-      return value ? JSON.parse(value) : null;
+      if (!value) {
+        return null;
+      }
+      return JSON.parse(value);
     },
     set(value) {
       this.setDataValue('processedTokens', JSON.stringify(value));
     }
   },
   
-  // Word frequency data (how many times each word appears)
-  // Stored as JSON object: {"finance": 45, "report": 23, "revenue": 18, ...}
+  // Word frequency data 
+  // Stored as JSON object: 
   wordFrequency: {
     type: DataTypes.TEXT,
     allowNull: true,
     // Automatically convert between JSON string (database) and JavaScript object (code)
     get() {
       const value = this.getDataValue('wordFrequency');
-      return value ? JSON.parse(value) : null;
+      if (!value) {
+        return null;
+      }
+      return JSON.parse(value);
     },
     set(value) {
       this.setDataValue('wordFrequency', JSON.stringify(value));
@@ -114,14 +111,17 @@ const Document = sequelize.define('Document', {
   },
   
   // Top 20 most common words
-  // Stored as JSON array: [{word: "finance", count: 45}, {word: "report", count: 23}, ...]
+  // Stored as JSON array
   topWords: {
     type: DataTypes.TEXT,
     allowNull: true,
     // Automatically convert between JSON string (database) and JavaScript object (code)
     get() {
       const value = this.getDataValue('topWords');
-      return value ? JSON.parse(value) : null;
+      if (!value) {
+        return null;
+      }
+      return JSON.parse(value);
     },
     set(value) {
       this.setDataValue('topWords', JSON.stringify(value));
@@ -140,7 +140,9 @@ const Document = sequelize.define('Document', {
 
 
 // --- DATABASE RELATIONSHIPS ---
-// A Document belongs to one User (the uploader)
+// Paul Corey's Database Model came in handy here :)
+
+// A Document belongs to one User 
 Document.belongsTo(User, { foreignKey: 'userId' });
 
 // A User can have many Documents

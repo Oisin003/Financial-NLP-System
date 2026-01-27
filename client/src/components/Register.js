@@ -1,15 +1,5 @@
 /**
  * Register Component - User Registration Page
- * 
- * Features:
- * - Username, email, password, and confirm password fields
- * - Strong password validation (8+ chars, upper, lower, number, special char)
- * - Client-side validation before API call
- * - Password match verification
- * - Error message display
- * - Loading spinner during registration
- * - Link to login page
- * - Calls backend API at http://localhost:8080/api/auth/register
  */
 
 import React, { useState } from 'react';

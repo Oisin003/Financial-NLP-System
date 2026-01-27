@@ -10,47 +10,21 @@
  * 3. For each request, frontend sends token in Authorization header
  * 4. This middleware verifies the token is valid
  * 5. If valid, request continues; if not, returns 401 Unauthorized
- * 
- * Two middleware functions:
- * 
- * auth - Basic authentication check
- *   - Verifies JWT token is present and valid
- *   - Adds user info (id, role) to req.user
- *   - Use on routes that require any logged-in user
- * 
- * adminAuth - Admin role check
- *   - Checks if user has admin role
- *   - Must be used AFTER auth middleware
- *   - Use on routes that only admins can access
- * 
- * Usage examples:
- *   router.get('/profile', auth, handler)              // Any logged-in user
- *   router.get('/admin/users', auth, adminAuth, handler)  // Admin only
  */
 
 import jwt from 'jsonwebtoken';  // JSON Web Token library
 
 /**
  * Basic Authentication Middleware
- * Verifies JWT token and adds user info to request
- * 
- * Expected header format:
- *   Authorization: Bearer <token>
- * 
- * On success:
- *   - Sets req.user = { id, role } from token payload
- *   - Calls next() to continue to route handler
- * 
- * On failure:
- *   - Returns 401 Unauthorized
- *   - Does not call next()
+ * Verifies JWT token 
  */
 const auth = (req, res, next) => {
   try {
     // Step 1: Get the token from Authorization header
     // Header looks like: "Authorization: Bearer eyJhbGciOiJ..."
     // We need to extract just the token part (remove "Bearer ")
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization');
+    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
     
     // Step 2: Check if token exists
     if (!token) {
@@ -82,15 +56,6 @@ const auth = (req, res, next) => {
 /**
  * Admin Authorization Middleware
  * Checks if authenticated user has admin role
- * 
- * IMPORTANT: Must be used AFTER auth middleware
- * (auth middleware sets req.user, which this function checks)
- * 
- * On success:
- *   - User is admin, calls next() to continue
- * 
- * On failure:
- *   - Returns 403 Forbidden (user is logged in, but not admin)
  */
 const adminAuth = (req, res, next) => {
   // Check if user has admin role

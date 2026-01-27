@@ -12,7 +12,7 @@ function FileDropZone({ onFileSelect, onDrop, onDragOver }) {
       onDrop={onDrop}
       onDragOver={onDragOver}
       style={{ 
-        backgroundColor: '#f8f9fa',
+        backgroundColor: 'white',
         cursor: 'pointer'
       }}
     >
