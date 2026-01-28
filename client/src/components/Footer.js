@@ -122,7 +122,7 @@ function Footer() {
           
           {/* Right side: Legal Links */}
           <div className="col-md-6 text-center text-md-end">
-            <a href="/privacy" className="text-light text-decoration-none me-3">
+            <a href="/privacy-policy" className="text-light text-decoration-none me-3">
               Privacy Policy
             </a>
             <span className="text-light">•</span>

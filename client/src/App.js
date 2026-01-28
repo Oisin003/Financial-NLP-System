@@ -18,6 +18,9 @@ import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
 import UploadDocument from './components/UploadDocument';
 import Documents from './components/Documents';
+import About from './components/About';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 import './App.css';
 
 function App() {
@@ -118,6 +121,18 @@ function App() {
             <Route 
               path="/documents" 
               element={user ? <Documents /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/about" 
+              element={<About />} 
+            />
+            <Route 
+              path="/privacy-policy" 
+              element={<PrivacyPolicy />} 
+            />
+            <Route 
+              path="/terms" 
+              element={<TermsOfService />} 
             />
             
             {/* Admin-only route - requires admin role */}
