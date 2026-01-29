@@ -1,5 +1,7 @@
 # Financial-NLP-System
 
+L00172671 - Oisin Gibson
+
 ## File Overview (Brief)
 
 ### Root
@@ -83,7 +85,10 @@
 ### Scripts
 - [scripts/startTika.js](scripts/startTika.js): Starts Tika server with config.
 
-  
+==============================================================================================================================================================================================================================
+Reference Material
+------------------
+
 - **Tokenization Concepts**
   - Manning, C. D., & Schütze, H. (1999). *Foundations of Statistical Natural Language Processing*. MIT Press.
   
