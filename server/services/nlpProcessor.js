@@ -6,6 +6,18 @@
 
 import natural from 'natural';  // NLP library with tokenization and stemming
 import fs from 'fs';
+import fetch from 'node-fetch';
+// Call the Python NER microservice
+async function getEntitiesFromNER(text) {
+  const response = await fetch('http://127.0.0.1:8000/ner', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  if (!response.ok) throw new Error('NER service error');
+  const data = await response.json();
+  return data.entities; // array of entities
+}
 
 // --- NLP TOOLS SETUP ---
 
@@ -164,36 +176,43 @@ export function lemmatizeTokens(tokens) {
 export async function processDocument(filePath) {
   // Step 1: Extract text from PDF
   const rawText = await extractTextFromPDF(filePath);
-  
+
   // Step 2: Tokenize (split into words)
   const tokens = tokenizeText(rawText);
-  
+
   // Step 3: Remove stopwords
   const filteredTokens = removeStopwords(tokens);
-  
-  // Step 4: Lemmatize 
+
+  // Step 4: Lemmatize
   const lemmatizedTokens = lemmatizeTokens(filteredTokens);
-  
+
   // Step 5: Count word frequencies
-  // Create an object like: {"finance": 45, "report": 23, "revenue": 18, ...}
   const wordFrequency = {};
   lemmatizedTokens.forEach(token => {
     wordFrequency[token] = (wordFrequency[token] || 0) + 1;
   });
-  
+
   // Step 6: Find top 20 most common words
-  // Convert to array, sort by count (highest first), take top 20
   const topWords = Object.entries(wordFrequency)
-    .sort((a, b) => b[1] - a[1])  // Sort by count descending
-    .slice(0, 20)                 // Take first 20
-    .map(([word, count]) => ({ word, count }));  // Convert to objects
-  
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([word, count]) => ({ word, count }));
+
+  // Step 7: Get NER entities from Python microservice
+  let entities = [];
+  try {
+    entities = await getEntitiesFromNER(rawText);
+  } catch (err) {
+    console.error('NER microservice error:', err.message);
+  }
+
   // Return all results
-  return { 
+  return {
     rawText,              // Original text
     processedTokens: lemmatizedTokens,  // All processed words
     wordFrequency,        // Word counts
-    topWords              // Top 20 words
+    topWords,             // Top 20 words
+    entities              // NER entities
   };
 }
 
