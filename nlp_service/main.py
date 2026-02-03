@@ -23,17 +23,93 @@ except LookupError:
     nltk.download('stopwords')
 
 # Custom stopword list: financial terms
+# NOTE: Keep this list in sync with server/services/nlpProcessor.js
+
+# Custom stopword list: financial terms to retain during preprocessing
+# NOTE: Keep this list in sync with server/services/nlpProcessor.js
 default_stopwords = set(stopwords.words('english'))
 financial_terms = {
-    'revenue', 'ebitda', 'asset', 'liability', 'fiscal', 'dividend', 'equity', 'debt', 'profit', 'loss',
-    'cash', 'income', 'expense', 'balance', 'sheet', 'statement', 'earnings', 'interest', 'tax', 'amortization',
-    'capital', 'investment', 'valuation', 'margin', 'turnover', 'ratio', 'liquidity', 'solvency', 'shareholder',
-    'dividends', 'payable', 'receivable', 'inventory', 'goodwill', 'impairment', 'depreciation', 'operating',
-    'noncurrent', 'current', 'assets', 'liabilities', 'net', 'gross', 'cost', 'sales', 'revenue', 'operating',
-    'expenses', 'profitability', 'return', 'roi', 'roe', 'roa', 'ebit', 'ebitda', 'eps', 'diluted', 'basic',
-    'shares', 'outstanding', 'capitalization', 'market', 'value', 'book', 'value', 'debt', 'equity', 'ratio',
-    'leverage', 'coverage', 'dividend', 'yield', 'payout', 'growth', 'forecast', 'guidance', 'quarter', 'annual',
-    'fiscal', 'year', 'period', 'q1', 'q2', 'q3', 'q4', 'yoy', 'qoq', 'cagr', 'guidance', 'projection', 'estimate'
+    # Income Statement Terms
+    'revenue', 'revenues', 'sales', 'income', 'profit', 'loss', 'earnings', 'expense', 'expenses',
+    'cost', 'costs', 'margin', 'ebitda', 'ebit', 'operating', 'nonoperating', 'gross', 'net',
+    'pretax', 'aftertax', 'posttax', 'eps', 'diluted', 'basic', 'profitability',
+    
+    # Balance Sheet Terms
+    'asset', 'assets', 'liability', 'liabilities', 'equity', 'capital', 'cash', 'inventory',
+    'receivable', 'receivables', 'payable', 'payables', 'current', 'noncurrent', 'longterm',
+    'shortterm', 'goodwill', 'intangible', 'tangible', 'property', 'plant', 'equipment', 'ppe',
+    'retained', 'accumulated', 'shareholder', 'shareholders', 'stockholder', 'stockholders',
+    
+    # Cash Flow Terms
+    'cashflow', 'financing', 'investing', 'operational', 'fcf', 'freecashflow', 'capex',
+    'dividends', 'dividend', 'payout', 'buyback', 'repurchase',
+    
+    # Financial Ratios & Metrics
+    'ratio', 'ratios', 'roi', 'roe', 'roa', 'roce', 'roic', 'liquidity', 'solvency', 'leverage',
+    'coverage', 'turnover', 'yield', 'return', 'returns', 'valuation', 'multiple', 'pe', 'pb',
+    'ps', 'ev', 'enterprise', 'wacc', 'capm', 'beta', 'alpha', 'volatility', 'sharpe',
+    
+    # Time Periods
+    'fiscal', 'quarter', 'quarterly', 'annual', 'annually', 'year', 'period', 'ytd', 'mtd',
+    'q1', 'q2', 'q3', 'q4', 'fy', 'yoy', 'qoq', 'mom', 'yoy', 'cagr',
+    
+    # Financial Instruments
+    'stock', 'stocks', 'share', 'shares', 'bond', 'bonds', 'debt', 'loan', 'credit',
+    'derivative', 'derivatives', 'option', 'options', 'future', 'futures', 'forward', 'forwards',
+    'swap', 'swaps', 'hedge', 'hedging', 'warrant', 'warrants', 'convertible', 'preferred',
+    'common', 'securities', 'portfolio', 'fund', 'etf', 'mutual', 'index',
+    
+    # Corporate Actions & Events
+    'acquisition', 'merger', 'divestiture', 'spinoff', 'ipo', 'offering', 'issuance',
+    'refinancing', 'restructuring', 'bankruptcy', 'liquidation', 'dissolution', 'dilution',
+    'split', 'reverse', 'consolidation', 'consolidated', 'subsidiary', 'subsidiaries',
+    'parent', 'affiliate', 'joint', 'venture', 'partnership',
+    
+    # Accounting & Reporting
+    'balance', 'sheet', 'statement', 'report', 'disclosure', 'footnote', 'note', 'notes',
+    'comprehensive', 'amortization', 'depreciation', 'impairment', 'writeoff', 'writedown',
+    'provision', 'reserve', 'accrual', 'deferred', 'contingency', 'commitment', 'obligation',
+    'restatement', 'adjustment', 'reclassification', 'fair', 'value', 'book', 'carrying',
+    'market', 'historical', 'materiality', 'material',
+    
+    # Regulatory & Compliance
+    'gaap', 'ifrs', 'us-gaap', 'ias', 'fasb', 'iasb', 'sec', 'sox', 'sarbanes-oxley',
+    'compliance', 'regulation', 'regulatory', 'audit', 'auditor', 'audited', 'reviewed',
+    'unaudited', 'opinion', 'qualified', 'unqualified', 'adverse', 'disclaimer',
+    
+    # SEC Filings
+    '10-k', '10-q', '8-k', '10k', '10q', '8k', 'proxy', 'def14a', '20-f', '40-f', 's-1',
+    'prospectus', 'registration', 'filing', 'exhibit', 'schedule',
+    
+    # Market & Trading
+    'market', 'trading', 'price', 'pricing', 'exchange', 'traded', 'listed', 'delisted',
+    'ticker', 'symbol', 'quotation', 'bid', 'ask', 'spread', 'volume', 'outstanding',
+    'float', 'capitalization', 'marketcap', 'liquidity',
+    
+    # Risk & Treasury
+    'risk', 'risks', 'exposure', 'hedge', 'hedging', 'counterparty', 'credit', 'default',
+    'rating', 'ratings', 'agency', 'moodys', 'sp', 'fitch', 'benchmark', 'libor', 'sofr',
+    'treasury', 'forex', 'fx', 'currency', 'currencies', 'foreign', 'translation', 'transaction',
+    
+    # Strategy & Planning
+    'guidance', 'forecast', 'projection', 'estimate', 'estimates', 'outlook', 'target', 'goal',
+    'budget', 'plan', 'strategy', 'strategic', 'initiative', 'growth', 'expansion', 'organic',
+    'inorganic', 'synergy', 'synergies', 'efficiency', 'optimization',
+    
+    # Segments & Operations
+    'segment', 'segments', 'geographic', 'geographical', 'regional', 'business', 'unit', 'division',
+    'operations', 'operational', 'management', 'discussion', 'analysis', 'md&a', 'mda',
+    'discontinued', 'continuing', 'core', 'noncore',
+    
+    # Tax
+    'tax', 'taxes', 'taxation', 'taxable', 'deductible', 'dtl', 'dta', 'nol', 'carryforward',
+    'carryback', 'effective', 'statutory', 'rate', 'jurisdiction', 'domestic', 'international',
+    
+    # Additional Common Terms
+    'covenant', 'covenants', 'notional', 'nominal', 'contract', 'contractual', 'agreement',
+    'arrangement', 'transaction', 'transactions', 'proceeds', 'disbursement', 'payment',
+    'settlement', 'maturity', 'principal', 'interest', 'coupon', 'amortize', 'accrete',
+    'appreciate', 'depreciate', 'recognize', 'recognition', 'measurement', 'remeasurement'
 }
 custom_stopwords = default_stopwords - financial_terms
 
