@@ -24,15 +24,43 @@ async function getEntitiesFromNER(text) {
 // Tokenizer: splits text into individual words
 const tokenizer = new natural.WordTokenizer();
 
-// Stemmer: reduces words to their root form (e.g., "running" → "run")
+// Stemmer: reduces words to their root form (e.g., "running" to "run")
 const { LancasterStemmer } = natural;
 
-// Stopwords: common words we want to ignore 
-// Words like "the", "a", "and", "is", etc. are too common to be useful
-const stopwords = new Set([
+
+// Stopwords: common words we want to ignore, but preserve important financial terms
+// Financial terms will be retained even if they appear in stopword lists
+const baseStopwords = [
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
   'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with'
-]); // Need to add more financial stopwords later
+];
+
+// List of important financial terms to always retain (case-insensitive, lowercased)
+const financialTerms = [
+  'revenue', 'profit', 'loss', 'asset', 'liability', 'equity', 'debt', 'dividend',
+  'cash', 'expense', 'income', 'balance', 'sheet', 'statement', 'fiscal', 'quarter',
+  'year', 'ebitda', 'margin', 'interest', 'tax', 'amortization', 'depreciation',
+  'capital', 'investment', 'valuation', 'earnings', 'shareholder', 'stock', 'bond',
+  'portfolio', 'fund', 'return', 'yield', 'ratio', 'liquidity', 'solvency',
+  'current', 'noncurrent', 'payable', 'receivable', 'inventory', 'cost', 'gross',
+  'net', 'operating', 'nonoperating', 'comprehensive', 'income', 'statement',
+  'report', 'period', 'guidance', 'forecast', 'projection', 'budget', 'audit',
+  'compliance', 'regulation', 'disclosure', 'material', 'event', 'restatement',
+  'consolidated', 'subsidiary', 'parent', 'acquisition', 'merger', 'divestiture',
+  'goodwill', 'impairment', 'writeoff', 'write-down', 'deferred', 'tax', 'asset',
+  'liability', 'provision', 'contingency', 'derivative', 'hedge', 'swap', 'option',
+  'future', 'forward', 'contract', 'notional', 'exposure', 'risk', 'credit',
+  'counterparty', 'default', 'rating', 'agency', 'benchmark', 'index', 'market',
+  'exchange', 'currency', 'foreign', 'translation', 'revenue', 'segment', 'operating',
+  'segment', 'geographic', 'segment', 'business', 'unit', 'management', 'discussion',
+  'analysis', 'md&a', 'sarbanes-oxley', 'sox', 'ifrs', 'gaap', 'us-gaap', 'ias', 'fasb',
+  'iasb', 'sec', '10-k', '10-q', '8-k', '20-f', '40-f', 's-1', 'prospectus', 'ipo',
+  'secondary', 'offering', 'private', 'placement', 'debt', 'covenant', 'leverage',
+  'coverage', 'ratio', 'interest', 'coverage', 'debt', 'service', 'coverage', 'ratio'
+];
+
+// Build stopword set, but exclude financial terms
+const stopwords = new Set(baseStopwords.filter(word => !financialTerms.includes(word)));
 
 // --- TEXT EXTRACTION SETUP ---
 
@@ -68,12 +96,16 @@ const validateExtractedText = (text) => {
   return { ok: true };
 };
 
+// Reference: GeeksforGeeks - Extract Text from PDF using Apache Tika
+// http://geeksforgeeks.org/python/parsing-pdfs-in-python-with-tika/
 const extractTextWithTika = async (filePath, options = {}) => {
   const dataBuffer = fs.readFileSync(filePath);
   const useOcr = options.ocr === true;
 
+  // Request plain text output from Tika
   const headers = {
-    'Content-Type': 'application/pdf'
+    'Content-Type': 'application/pdf',
+    'Accept': 'text/plain'
   };
 
   if (useOcr) {
@@ -92,7 +124,14 @@ const extractTextWithTika = async (filePath, options = {}) => {
       throw new Error(`Tika extraction failed (${response.status})${errorBody ? `: ${errorBody}` : ''}`);
     }
 
-    return response.text();
+    let text = await response.text();
+
+    // Step 2: Remove any remaining markup (basic post-processing)
+    // Remove XML/HTML tags if any slipped through
+    text = text.replace(/<[^>]+>/g, ' '); // Remove tags
+    text = text.replace(/\s+/g, ' ').trim(); // Collapse whitespace
+
+    return text;
   } catch (error) {
     console.error('Tika fetch failed', {
       tikaUrl: TIKA_URL,
@@ -153,8 +192,14 @@ export function tokenizeText(text) {
  * Filters out common words that don't carry meaningful information.
  * 
  */
+// Remove stopwords, but always retain financial terms (case-insensitive)
 export function removeStopwords(tokens) {
-  return tokens.filter(token => !stopwords.has(token));
+  return tokens.filter(token => {
+    // Always retain financial terms
+    if (financialTerms.includes(token)) return true;
+    // Remove if in stopwords
+    return !stopwords.has(token);
+  });
 }
 
 /**
