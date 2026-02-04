@@ -136,9 +136,10 @@ function App() {
             />
             
             {/* Admin-only route - requires admin role */}
+            {/* Check if user exists AND has admin role */}
             <Route 
               path="/admin" 
-              element={user?.role === 'admin' ? <AdminPanel /> : <Navigate to="/dashboard" />} 
+              element={(user && user.role === 'admin') ? <AdminPanel /> : <Navigate to="/dashboard" />} 
             />
             
             {/* Home route - redirects based on login status */}

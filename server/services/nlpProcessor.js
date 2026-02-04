@@ -9,6 +9,7 @@
 import natural from 'natural';  // For tokenizing and stemming words
 import fs from 'fs';  // For reading files from disk
 import fetch from 'node-fetch';  // For making HTTP requests
+import path from 'path';  // For working with file paths
 
 /**
  * This function sends text to the Python NER (Named Entity Recognition) microservice
@@ -164,9 +165,10 @@ const stopwords = new Set(stopwordsWithoutFinancialTerms);
 const TIKA_URL = process.env.TIKA_URL || 'http://localhost:9998/tika';
 
 // Minimum requirements for extracted text to be considered valid
-const MIN_TEXT_LENGTH = 100;  // Must have at least 100 characters
-const MIN_WORDS = 50;  // Must have at least 50 words
-const MIN_PRINTABLE_RATIO = 0.9;  // At least 90% must be readable characters
+// These thresholds are set to accept shorter documents like receipts or brief statements
+const MIN_TEXT_LENGTH = 30;  // Must have at least 30 characters
+const MIN_WORDS = 10;  // Must have at least 10 words
+const MIN_PRINTABLE_RATIO = 0.8;  // At least 80% must be readable characters
 
 /**
  * This function checks if the extracted text is good enough to use
@@ -178,18 +180,52 @@ const MIN_PRINTABLE_RATIO = 0.9;  // At least 90% must be readable characters
 function validateExtractedText(text) {
   // First, trim whitespace from the text
   // If text is null or undefined, use empty string
+  const rawLength = (text || '').length;
   const trimmedText = (text || '').trim();
 
   // CHECK 1: Is the text long enough?
   if (trimmedText.length < MIN_TEXT_LENGTH) {
-    return { ok: false, reason: 'Text too short' };
+    // Provide more specific error message if PDF had lots of whitespace but no content
+    if (rawLength > 0 && trimmedText.length === 0) {
+      return { 
+        ok: false, 
+        reason: `Document contains only whitespace/blank pages (no readable text). This PDF may contain only images or be truly blank. If this is a scanned document with images, the OCR system was unable to recognize any text from the images.` 
+      };
+    }
+    return { 
+      ok: false, 
+      reason: `Document text is too short (${trimmedText.length} characters). Need at least ${MIN_TEXT_LENGTH} characters for reliable NLP analysis.` 
+    };
   }
 
   // CHECK 2: Does it have enough words?
   // Split by whitespace and remove empty strings
   const words = trimmedText.split(/\s+/).filter(Boolean);
   if (words.length < MIN_WORDS) {
-    return { ok: false, reason: 'Too few words' };
+    return { 
+      ok: false, 
+      reason: `Document has too few words (${words.length} words). Need at least ${MIN_WORDS} words for meaningful analysis.` 
+    };
+  }
+
+  // CHECK 3: Is the text mostly image placeholders?
+  // Pattern: [image: imageX.jp2] or similar
+  const imageTagPattern = /\[image:\s*image\d+\.(jp2|jpg|jpeg|png|gif)\]/gi;
+  const imageMatches = trimmedText.match(imageTagPattern);
+  console.log(`Image placeholder check: found ${imageMatches ? imageMatches.length : 0} image tags`);
+  
+  if (imageMatches && imageMatches.length > 5) {
+    // If more than 5 image placeholders, likely an image-based PDF
+    const textWithoutImages = trimmedText.replace(imageTagPattern, '').trim();
+    const remainingWords = textWithoutImages.split(/\s+/).filter(Boolean).length;
+    console.log(`After removing image tags: ${remainingWords} words remain`);
+    
+    if (remainingWords < MIN_WORDS) {
+      return {
+        ok: false,
+        reason: `Document contains ${imageMatches.length} images but no extractable text. This PDF appears to be composed entirely of images without a text layer. To process this document, you need to:\n\n1. Use OCR software (like Adobe Acrobat) to convert it to a searchable PDF\n2. Re-create the document with actual text instead of images\n3. Export from the source application with text preservation enabled`
+      };
+    }
   }
 
   // CHECK 3: Is the text readable (not garbage characters)?
@@ -198,7 +234,10 @@ function validateExtractedText(text) {
   // Calculate the ratio of printable to total characters
   const printableRatio = printableChars / trimmedText.length;
   if (printableRatio < MIN_PRINTABLE_RATIO) {
-    return { ok: false, reason: 'Low readability detected (non-printable ratio)' };
+    return { 
+      ok: false, 
+      reason: `Document contains too many unreadable characters (${Math.round(printableRatio * 100)}% readable). Need at least ${Math.round(MIN_PRINTABLE_RATIO * 100)}% readable text.` 
+    };
   }
 
   // All checks passed!
@@ -226,6 +265,8 @@ async function extractTextWithTika(filePath, options) {
   
   // Check if OCR should be used (for scanned documents)
   const useOcr = options.ocr === true;
+  // Check if we should try the alternative extraction method
+  const useAlternative = options.alternative === true;
 
   // Set up the HTTP headers for the request
   const headers = {
@@ -237,8 +278,21 @@ async function extractTextWithTika(filePath, options) {
   if (useOcr) {
     headers['X-Tika-OCRLanguage'] = 'eng';
   }
+  
+  // Try alternative extraction settings for problematic PDFs
+  // This attempts to extract text more aggressively without using inline OCR
+  if (useAlternative) {
+    headers['X-Tika-PDFextractInlineImages'] = 'true';
+    headers['X-Tika-PDFextractUniqueInlineImagesOnly'] = 'false';
+    headers['X-Tika-PDFOcrStrategy'] = 'no_ocr';  // Don't use OCR on extracted images
+  }
 
   try {
+    // Log file information for debugging
+    const fileStats = fs.statSync(filePath);
+    const method = useAlternative ? ' (alternative method)' : (useOcr ? ' with OCR' : '');
+    console.log(`Extracting text from PDF: ${path.basename(filePath)} (${fileStats.size} bytes)${method}`);
+    
     // Send the PDF to Tika server using HTTP PUT request
     const response = await fetch(TIKA_URL, {
       method: 'PUT',
@@ -254,6 +308,12 @@ async function extractTextWithTika(filePath, options) {
 
     // Get the text from the response
     let text = await response.text();
+    console.log(`Tika returned ${text.length} characters${method}`);
+    
+    // If text is empty and we haven't tried OCR yet, provide helpful feedback
+    if (text.length === 0 && !useOcr) {
+      console.warn('Warning: PDF returned zero characters.');
+    }
 
     // CLEAN UP THE TEXT:
     // Sometimes Tika returns text with XML/HTML tags, so remove them
@@ -294,7 +354,7 @@ export async function extractTextFromPDF(filePath) {
   // Check if the extracted text is good enough
   if (!validation.ok) {
     // If not, try OCR (for scanned documents or images)
-    console.warn(`Tika text validation failed, attempting OCR fallback: ${validation.reason}`);
+    console.warn(`Text extraction validation failed, attempting OCR fallback: ${validation.reason}`);
     
     // ATTEMPT 2: Try with OCR enabled
     const ocrText = await extractTextWithTika(filePath, { ocr: true });
@@ -302,11 +362,49 @@ export async function extractTextFromPDF(filePath) {
     
     // Check if OCR text is good
     if (ocrValidation.ok) {
+      console.log('OCR extraction successful');
       return ocrText;
     }
     
-    // If both attempts failed, throw an error
-    throw new Error(`Text validation failed after OCR: ${ocrValidation.reason}`);
+    // ATTEMPT 3: Try alternative extraction method
+    // This uses special Tika features to extract inline images
+    console.warn('OCR extraction failed, attempting alternative extraction method...');
+    let altValidation;
+    try {
+      const altText = await extractTextWithTika(filePath, { alternative: true });
+      altValidation = validateExtractedText(altText);
+      
+      // Check if alternative extraction worked
+      if (altValidation.ok) {
+        console.log('Alternative extraction successful');
+        return altText;
+      }
+      
+      // If validation failed with a specific reason (like image detection), use that
+      if (altValidation && altValidation.reason) {
+        throw new Error(altValidation.reason);
+      }
+    } catch (altError) {
+      // Alternative method failed (likely Tika configuration issue or corrupted PDF)
+      console.warn(`Alternative extraction failed: ${altError.message}`);
+      // If this is a validation error with a specific message, re-throw it
+      if (altError.message.includes('images but no extractable text') || 
+          altError.message.includes('re-create the document')) {
+        throw altError;
+      }
+    }
+    
+    // All three attempts failed - provide detailed error message
+    const trimmedRawText = (rawText || '').trim();
+    const trimmedOcrText = (ocrText || '').trim();
+    
+    // Check if PDF returned only whitespace (common with graphics-based PDFs)
+    if (trimmedRawText.length === 0 && trimmedOcrText.length === 0) {
+      throw new Error(`Unable to extract any readable text from this PDF. The document contains only whitespace/blank content. This typically happens when:\n\n1. Text is rendered as vector graphics or flattened images (not actual text)\n2. The PDF uses custom fonts that aren't properly embedded\n3. The document is corrupted or encrypted\n\nSuggested solutions:\n• Re-export the PDF with "Embed all fonts" and "Preserve text" options enabled\n• Try converting to Word format first, then save as a new PDF\n• Use OCR software to create a searchable PDF from the original\n• Verify the PDF opens correctly and text can be selected/copied in a PDF reader`);
+    }
+    
+    // If we got some text but not enough, provide different guidance
+    throw new Error(`Unable to extract sufficient text from this document (${trimmedRawText.length} characters extracted). This may occur with scanned images, blank pages, very short documents, or PDFs with text rendered as graphics. Please ensure your PDF contains readable text content.`);
   }
 
   // Return the successfully extracted text

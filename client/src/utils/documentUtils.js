@@ -26,7 +26,7 @@ export const formatFileSize = (bytes) => {
  */
 export const formatDate = (dateString) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-IE', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -48,7 +48,7 @@ export const groupDocumentsByMonth = (documents) => {
 
   documents.forEach(doc => {
     const date = new Date(doc.uploadDate);
-    const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthYear = date.toLocaleDateString('en-IE', { month: 'long', year: 'numeric' });
     
     if (!grouped[monthYear]) {
       grouped[monthYear] = [];

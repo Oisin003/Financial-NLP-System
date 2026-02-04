@@ -166,8 +166,15 @@ def analyze_document(request: TextRequest):
         for ent in doc.ents
     ]
 
-    # Extract key financial figures (simple: all MONEY entities)
-    key_figures = [ent["text"] for ent in entities if ent["label"] == "MONEY"]
+    # Extract key financial figures (all MONEY entities, labeled separately)
+    financial_figures = [
+        {
+            "text": ent["text"],
+            "start_char": ent["start_char"],
+            "end_char": ent["end_char"]
+        }
+        for ent in entities if ent["label"] == "MONEY"
+    ]
 
     # 3. Topic modeling (TF-IDF + LDA)
     # For a single document, LDA is limited, but we can split into sentences for demo
@@ -199,8 +206,8 @@ def analyze_document(request: TextRequest):
     processing_time = end_time - start_time
 
     return {
-        "entities": entities,
-        "key_figures": key_figures,
+        "entities": [ent for ent in entities if ent["label"] != "MONEY"],
+        "financial_figures": financial_figures,
         "topics": topic_words,
         "summary": summary,
         "processing_time_seconds": round(processing_time, 3),

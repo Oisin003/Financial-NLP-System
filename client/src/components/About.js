@@ -15,7 +15,7 @@ function About() {
 			{/* <h2 className="about-section-title">Our Team</h2> */}
 
 			<div className="row g-4">
-				<div className="col-12 col-md-6 col-lg-4">
+				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
 							src="/images/logo.png"
@@ -40,7 +40,7 @@ function About() {
 					</div>
 				</div>
 
-				<div className="col-12 col-md-6 col-lg-4">
+				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
 							src="/images/logo.png"
@@ -59,30 +59,7 @@ function About() {
 					</div>
 				</div>
 
-				<div className="col-12 col-md-6 col-lg-4">
-					<div className="card h-100">
-						<img
-							src="/images/logo.png"
-							alt="John Doe"
-							className="about-card-image"
-						/>
-						<div className="card-body about-card-body">
-							<h5 className="card-title">John Doe</h5>
-							<p className="text-muted mb-1">Designer</p>
-							<p className="card-text">
-								Designs clear, accessible interfaces that make complex analytics simple
-								to understand. Focused on consistency, usability, and a polished user
-								experience across the platform.
-							</p>
-							{/* <p className="card-text">john@example.com</p> */}
-							<div className="about-card-actions">
-								{/* <button type="button" className="btn btn-outline-primary btn-sm">
-									Contact
-								</button> */}
-							</div>
-						</div>
-					</div>
-				</div>
+				
 			</div>
 		</div>
 	);

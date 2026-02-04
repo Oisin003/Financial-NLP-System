@@ -10,6 +10,33 @@ import { sequelize, User } from './User.js';
 
 // --- DOCUMENT TABLE DEFINITION ---
 const Document = sequelize.define('Document', {
+    // Financial figures extracted by NLP microservice (array of objects)
+    financialFigures: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const value = this.getDataValue('financialFigures');
+        if (!value) return [];
+        return JSON.parse(value);
+      },
+      set(value) {
+        this.setDataValue('financialFigures', JSON.stringify(value));
+      }
+    },
+
+    // Named entities extracted by NLP microservice (array of objects)
+    nlpEntities: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const value = this.getDataValue('nlpEntities');
+        if (!value) return [];
+        return JSON.parse(value);
+      },
+      set(value) {
+        this.setDataValue('nlpEntities', JSON.stringify(value));
+      }
+    },
   
   // Unique ID for each document 
   id: {
@@ -132,6 +159,28 @@ const Document = sequelize.define('Document', {
   nlpProcessed: {
     type: DataTypes.BOOLEAN,
     defaultValue: false  // Starts as false, set to true after NLP processing
+  },
+
+  // NLP Processing Timing Information
+  nlpProcessingStartTime: {
+    type: DataTypes.DATE,
+    allowNull: true  // When NLP processing started
+  },
+
+  nlpProcessingEndTime: {
+    type: DataTypes.DATE,
+    allowNull: true  // When NLP processing completed
+  },
+
+  nlpProcessingDuration: {
+    type: DataTypes.FLOAT,
+    allowNull: true  // Processing duration in seconds
+  },
+
+  // NLP Processing Error Message (if processing failed)
+  nlpError: {
+    type: DataTypes.TEXT,
+    allowNull: true  // Error message for failed processing, null if successful
   }
 }, {
   tableName: 'documents',

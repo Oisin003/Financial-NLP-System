@@ -30,7 +30,8 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
           </h6>
 
           {/* Show who uploaded it (admins only) */}
-          {currentUser?.role === 'admin' && doc.User && (
+          {/* Check if current user is admin AND document has user info */}
+          {currentUser && currentUser.role === 'admin' && doc.User && (
             <div className="text-center mb-2">
               <div className="bg-light rounded px-2 py-1">
                 <i className="bi bi-person-circle me-1 text-primary"></i>

@@ -14,7 +14,7 @@ function UploadGuidelines() {
       </h6>
       <ul className="mb-0 small">
         <li>PDF only</li>
-        <li>Maximum file size is 10MB</li>
+        <li>Maximum file size: 10MB</li>
         <li>You can view all your documents on the Documents page</li>
       </ul>
     </div>

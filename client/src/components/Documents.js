@@ -77,10 +77,12 @@ function Documents() {
             <div>
               <h2>
                 <i className="bi bi-folder2-open me-2 text-primary"></i>
-                {currentUser?.role === 'admin' ? 'All Documents' : 'My Documents'}
+                {/* Check if user is admin to show appropriate title */}
+                {currentUser && currentUser.role === 'admin' ? 'All Documents' : 'My Documents'}
               </h2>
               <p className="text-muted mb-0">
-                {currentUser?.role === 'admin'
+                {/* Check if user is admin to show appropriate description */}
+                {currentUser && currentUser.role === 'admin'
                   ? 'Manage all documents across the organization'
                   : 'Your financial documents organized by month'}
               </p>

@@ -13,11 +13,13 @@
 
 import React, { useState, useEffect } from 'react';
 import API_URL from '../config';
+import ProcessingTimes from './ProcessingTimes';
 
 function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'processing'
 
   // Fetch users when component loads
   useEffect(() => {
@@ -107,10 +109,49 @@ function AdminPanel() {
                   <strong>{users.length}</strong> Users
                 </div>
               </div>
+              
+              {/* Tab Navigation */}
+              <div className="mt-3">
+                <ul className="nav nav-tabs card-header-tabs">
+                  <li className="nav-item">
+                    <button 
+                      className={`nav-link ${activeTab === 'users' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('users')}
+                      style={{
+                        color: activeTab === 'users' ? '#0d6efd' : 'white',
+                        backgroundColor: activeTab === 'users' ? 'white' : 'transparent',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="bi bi-people me-2"></i>
+                      User Management
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button 
+                      className={`nav-link ${activeTab === 'processing' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('processing')}
+                      style={{
+                        color: activeTab === 'processing' ? '#0d6efd' : 'white',
+                        backgroundColor: activeTab === 'processing' ? 'white' : 'transparent',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="bi bi-clock-history me-2"></i>
+                      Processing Times
+                    </button>
+                  </li>
+                </ul>
+              </div>
             </div>
+
             <div className="card-body">
-              {/* Error alert */}
-              {error && (
+              {activeTab === 'users' && (
+                <>
+                  {/* Error alert */}
+                  {error && (
                 <div className="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">
                   <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
                   <span>{error}</span>
@@ -216,10 +257,10 @@ function AdminPanel() {
                         <div className="text-center">
                           <small className="text-muted">
                             <i className="bi bi-calendar-check me-1"></i>
-                            Joined {new Date(user.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
+                            Joined {new Date(user.createdAt).toLocaleDateString('en-IE', {
+                              day: 'numeric',
                               month: 'short',
-                              day: 'numeric'
+                              year: 'numeric'
                             })}
                           </small>
                         </div>
@@ -249,6 +290,12 @@ function AdminPanel() {
                     <p className="mb-0">No users found in the system.</p>
                   </div>
                 </div>
+              )}
+                </>
+              )}
+
+              {activeTab === 'processing' && (
+                <ProcessingTimes />
               )}
             </div>
           </div>

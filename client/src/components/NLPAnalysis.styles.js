@@ -77,6 +77,60 @@ export const styles = {
     background: 'white',
     borderRadius: '4px'
   },
+  // --- Financial Figures Styles ---
+  financialFiguresList: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  financialFigureItem: {
+    background: '#e3f7e8',
+    borderRadius: '4px',
+    padding: '8px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontWeight: 500,
+    fontSize: '16px',
+  },
+  financialFigureText: {
+    color: '#218838',
+    fontWeight: 600,
+    fontSize: '16px',
+  },
+  financialFigureMeta: {
+    color: '#555',
+    fontSize: '13px',
+    marginLeft: '8px',
+  },
+  // --- Timing Information Styles ---
+  timingInfo: {
+    marginTop: '15px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  timingItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 15px',
+    background: 'white',
+    borderRadius: '4px',
+    borderLeft: '4px solid #17a2b8'
+  },
+  timingLabel: {
+    fontWeight: '600',
+    color: '#555',
+    fontSize: '14px'
+  },
+  timingValue: {
+    color: '#17a2b8',
+    fontWeight: 'bold',
+    fontSize: '16px'
+  },
+  // -------------------------------
   rank: {
     color: '#999',
     fontSize: '12px',
@@ -141,5 +195,39 @@ export const styles = {
     height: '50px',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 20px'
-  }
+  },
+  // --- Error Display Styles ---
+  errorContainer: {
+    background: '#fff3cd',
+    border: '2px solid #ffc107',
+    borderRadius: '8px',
+    padding: '30px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '20px',
+    margin: '20px 0'
+  },
+  errorIcon: {
+    fontSize: '48px',
+    color: '#ff9800',
+    flexShrink: 0
+  },
+  errorTitle: {
+    color: '#856404',
+    marginTop: 0,
+    marginBottom: '10px'
+  },
+  errorMessage: {
+    color: '#856404',
+    lineHeight: '1.6',
+    marginBottom: '15px'
+  },
+  retryBtn: {
+    background: '#007bff',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px'  }
 };

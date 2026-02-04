@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import Document from '../models/Document.js';
 import { auth } from '../middleware/auth.js';
 import { processDocument } from '../services/nlpProcessor.js';
+import { getFullNLPAnalysis } from '../services/nlpMicroservice.js';
 
 const router = express.Router();
 
@@ -225,26 +226,65 @@ router.delete('/:id', auth, async (req, res) => {
  * It doesn't block the upload response.
  */
 async function processDocumentNLP(document) {
+  const startTime = new Date();
+  
   try {
     console.log(`Processing document ${document.id} with our patented NLP technique...`);
     
-    // Run NLP processing on the PDF file
-    // This extracts text, tokenizes, and builds stats
-    const nlpResults = await processDocument(document.filePath);
+    // Record start time in database and clear any previous error
+    await document.update({
+      nlpProcessingStartTime: startTime,
+      nlpProcessed: false,
+      nlpError: null  // Clear any previous error message
+    });
     
-    // Save NLP results to database
+    // Run NLP processing on the PDF file (basic stats)
+    const nlpResults = await processDocument(document.filePath);
+
+    // Call Python microservice for advanced NLP (financial figures, entities, etc.)
+    let microserviceResults = {};
+    try {
+      microserviceResults = await getFullNLPAnalysis(nlpResults.rawText);
+    } catch (err) {
+      console.error('Python NLP microservice /analyze error:', err.message);
+    }
+
+    // Calculate processing time
+    const endTime = new Date();
+    const durationMs = endTime - startTime;
+    const durationSeconds = (durationMs / 1000).toFixed(3);
+
+    // Save NLP results to database, including financial figures and timing
     await document.update({
       extractedText: nlpResults.rawText,
       processedTokens: nlpResults.processedTokens,
       wordFrequency: nlpResults.wordFrequency,
       topWords: nlpResults.topWords,
+      // Store financial_figures and entities as JSON if present
+      financialFigures: microserviceResults.financial_figures || [],
+      nlpEntities: microserviceResults.entities || [],
+      // Store timing information
+      nlpProcessingEndTime: endTime,
+      nlpProcessingDuration: parseFloat(durationSeconds),
       nlpProcessed: true  // Mark as complete
     });
     
-    console.log(`Document ${document.id} processed successfully`);
+    console.log(`Document ${document.id} processed successfully in ${durationSeconds}s`);
     
   } catch (error) {
     console.error(`NLP processing failed for document ${document.id}:`, error.message);
+    
+    // Record end time even on failure
+    const endTime = new Date();
+    const durationSeconds = ((endTime - startTime) / 1000).toFixed(3);
+    
+    // Store the user-friendly error message in the database
+    await document.update({
+      nlpProcessingEndTime: endTime,
+      nlpProcessingDuration: parseFloat(durationSeconds),
+      nlpProcessed: false,  // Mark as failed
+      nlpError: error.message  // Store error message for user
+    }).catch(err => console.error('Failed to update timing on error:', err));
   }
 }
 
@@ -283,7 +323,16 @@ router.get('/:id/nlp', auth, async (req, res) => {
       extractedText: document.extractedText,
       processedTokens: document.processedTokens,
       wordFrequency: document.wordFrequency,
-      topWords: document.topWords
+      topWords: document.topWords,
+      // Expose financial figures and entities to the frontend
+      financial_figures: document.financialFigures || [],
+      entities: document.nlpEntities || [],
+      // Expose timing information
+      timing: {
+        startTime: document.nlpProcessingStartTime,
+        endTime: document.nlpProcessingEndTime,
+        duration: document.nlpProcessingDuration
+      }
     });
     
   } catch (error) {
@@ -318,6 +367,63 @@ router.post('/:id/reprocess', auth, async (req, res) => {
   } catch (error) {
     console.error('Error reprocessing document:', error);
     res.status(500).json({ error: 'Failed to reprocess document' });
+  }
+});
+
+/**
+ * GET /api/documents/processing-times
+ * Get all document processing times (admin only)
+ */
+router.get('/processing-times', auth, async (req, res) => {
+  try {
+    // Only admins can see all processing times
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get all documents with timing information
+    const documents = await Document.findAll({
+      attributes: [
+        'id',
+        'originalName',
+        'userId',
+        'uploadDate',
+        'nlpProcessingStartTime',
+        'nlpProcessingEndTime',
+        'nlpProcessingDuration',
+        'nlpProcessed'
+      ],
+      where: {
+        nlpProcessed: true
+      },
+      order: [['nlpProcessingEndTime', 'DESC']],
+      include: [{
+        model: User,
+        attributes: ['email', 'username']
+      }]
+    });
+
+    res.json({
+      count: documents.length,
+      documents: documents.map(doc => ({
+        id: doc.id,
+        originalName: doc.originalName,
+        user: {
+          id: doc.userId,
+          email: doc.User.email,
+          username: doc.User.username
+        },
+        uploadDate: doc.uploadDate,
+        timing: {
+          startTime: doc.nlpProcessingStartTime,
+          endTime: doc.nlpProcessingEndTime,
+          duration: doc.nlpProcessingDuration
+        }
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching processing times:', error);
+    res.status(500).json({ error: 'Failed to fetch processing times' });
   }
 });
 

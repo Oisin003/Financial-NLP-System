@@ -23,7 +23,9 @@ function NLPAnalysis({ documentId, documentName, onClose }) {
     
     // Check every 3 seconds if document is still processing
     const interval = setInterval(() => {
-      if (!nlpData?.nlpProcessed) {
+      // Check if nlpData exists and if it's not processed yet
+      const isNotProcessed = nlpData && !nlpData.nlpProcessed;
+      if (isNotProcessed) {
         fetchNLPData();
       }
     }, 3000);
