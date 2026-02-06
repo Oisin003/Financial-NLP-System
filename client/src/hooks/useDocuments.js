@@ -91,7 +91,7 @@ export const useDocuments = () => {
         // Clear old login data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setError('Session expired. Please login again.');
+        setError('Session expired');
         // Redirect user to login page
         window.location.href = '/login';
         return;

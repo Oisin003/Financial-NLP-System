@@ -5,7 +5,7 @@
   "main": "server/server.js",
   "scripts": {
     "start": "concurrently \"npm run tika\" \"npm run server\" \"npm run client\" \"npm run nlp\"",
-    "server": "cd server && node server.js",
+    "server": "cd server && npm run start",
     "client": "cd client && npm start",
     "tika": "node scripts/startTika.js",
     "nlp": "cd nlp_service && venv\\Scripts\\python.exe -m uvicorn main:app --reload"

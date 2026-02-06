@@ -1,10 +1,11 @@
 const { spawn } = require('child_process');
-const { existsSync } = require('fs');
+const { existsSync, readdirSync } = require('fs');
+const path = require('path');
 
 // Allow overriding paths via environment variables
 const jarPath = process.env.TIKA_JAR || 'E:\\tika-server-standard-3.2.3.jar';
-const tikaConfigPath = process.env.TIKA_CONFIG;
-const serverConfigPath = process.env.TIKA_SERVER_CONFIG;
+const defaultTikaConfigPath = path.join(__dirname, '..', 'server', 'tika-config.xml');
+const tikaConfigPath = process.env.TIKA_CONFIG || (existsSync(defaultTikaConfigPath) ? defaultTikaConfigPath : undefined);
 const tikaHost = process.env.TIKA_HOST;
 const tikaPort = process.env.TIKA_PORT;
 
@@ -14,7 +15,18 @@ if (!existsSync(jarPath)) {
   process.exit(1);
 }
 
-const args = ['-jar', jarPath];
+const extraLibDir = path.join(__dirname, '..', 'server', 'lib');
+const hasExtraJars = existsSync(extraLibDir) && readdirSync(extraLibDir).some((file) => file.endsWith('.jar'));
+
+let args;
+if (hasExtraJars) {
+  const classpath = [jarPath, path.join(extraLibDir, '*')].join(';');
+  args = ['-cp', classpath, 'org.apache.tika.server.core.TikaServerCli'];
+  console.log(`Including extra JARs from: ${extraLibDir}`);
+} else {
+  console.warn('No extra JARs found in server/lib. JPEG2000 PDFs may fail OCR without jai-imageio JARs.');
+  args = ['-jar', jarPath];
+}
 
 if (tikaHost) {
   args.push('--host', tikaHost);
@@ -24,18 +36,9 @@ if (tikaPort) {
   args.push('--port', tikaPort);
 }
 
-if (serverConfigPath) {
-  if (!existsSync(serverConfigPath)) {
-    console.error(`Tika server config not found at: ${serverConfigPath}`);
-    console.error('Set TIKA_SERVER_CONFIG env var or update the path in scripts/startTika.js');
-    process.exit(1);
-  }
-  args.push('--config', serverConfigPath);
-}
-
 if (tikaConfigPath) {
   if (existsSync(tikaConfigPath)) {
-    args.push('--tikaConfig', tikaConfigPath);
+    args.push('--config', tikaConfigPath);
   } else {
     console.warn(`Tika config not found at: ${tikaConfigPath}`);
     console.warn('Continuing without a custom Tika config. Set TIKA_CONFIG to a valid path to enable it.');

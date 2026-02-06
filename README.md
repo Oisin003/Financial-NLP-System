@@ -110,6 +110,15 @@ Reference Material
 - **Tesseract OCR** (Official)
   - Project: https://github.com/tesseract-ocr/tesseract
 
+#### JPEG2000 OCR Support (Scanned PDFs)
+Some scanned PDFs use JPEG2000 (JP2) images. To OCR these, add the JAI Image I/O JARs:
+
+1. Download:
+   - `jai-imageio-core-*.jar`
+   - `jai-imageio-jpeg2000-*.jar`
+2. Place both files in [server/lib](server/lib)
+3. Restart Tika (`npm run tika`)
+
 - **React (W3Schools)**: https://www.w3schools.com/react/
 - **SQL (W3Schools)**: https://www.w3schools.com/sql/
 - **Node.js (GeeksforGeeks)**: https://www.geeksforgeeks.org/nodejs/

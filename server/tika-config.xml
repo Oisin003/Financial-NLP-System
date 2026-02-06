@@ -4,8 +4,19 @@
     <parser class="org.apache.tika.parser.DefaultParser">
       <params>
         <param name="enableImageProcessing" type="bool">true</param>
-        <param name="ocrStrategy" type="string">auto</param>
+      </params>
+    </parser>
+    <parser class="org.apache.tika.parser.pdf.PDFParser">
+      <params>
+        <param name="ocrStrategy" type="string">ocr_and_text</param>
+        <param name="extractInlineImages" type="bool">true</param>
+      </params>
+    </parser>
+    <parser class="org.apache.tika.parser.ocr.TesseractOCRParser">
+      <params>
         <param name="tesseractPath" type="string">C:\Program Files\Tesseract-OCR</param>
+        <param name="tesseractDataPath" type="string">C:\Program Files\Tesseract-OCR\tessdata</param>
+        <param name="language" type="string">eng</param>
       </params>
     </parser>
   </parsers>

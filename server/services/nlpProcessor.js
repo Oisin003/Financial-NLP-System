@@ -265,6 +265,8 @@ async function extractTextWithTika(filePath, options) {
   
   // Check if OCR should be used (for scanned documents)
   const useOcr = options.ocr === true;
+  // Optional OCR tuning
+  const ocrStrategy = options.ocrStrategy;
   // Check if we should try the alternative extraction method
   const useAlternative = options.alternative === true;
 
@@ -278,19 +280,32 @@ async function extractTextWithTika(filePath, options) {
   if (useOcr) {
     headers['X-Tika-OCRLanguage'] = 'eng';
   }
+
+  // Allow callers to control OCR strategy and tuning parameters
+  if (ocrStrategy) {
+    headers['X-Tika-PDFOcrStrategy'] = ocrStrategy;
+  } else if (useOcr) {
+    // Default to OCR + text for OCR attempts
+    headers['X-Tika-PDFOcrStrategy'] = 'ocr_and_text';
+  }
+
+
   
   // Try alternative extraction settings for problematic PDFs
   // This attempts to extract text more aggressively without using inline OCR
   if (useAlternative) {
     headers['X-Tika-PDFextractInlineImages'] = 'true';
     headers['X-Tika-PDFextractUniqueInlineImagesOnly'] = 'false';
-    headers['X-Tika-PDFOcrStrategy'] = 'no_ocr';  // Don't use OCR on extracted images
+    if (!headers['X-Tika-PDFOcrStrategy']) {
+      headers['X-Tika-PDFOcrStrategy'] = 'no_ocr';  // Don't use OCR on extracted images
+    }
   }
 
   try {
     // Log file information for debugging
     const fileStats = fs.statSync(filePath);
     const method = useAlternative ? ' (alternative method)' : (useOcr ? ' with OCR' : '');
+    const strategyInfo = headers['X-Tika-PDFOcrStrategy'] ? ` [${headers['X-Tika-PDFOcrStrategy']}]` : '';
     console.log(`Extracting text from PDF: ${path.basename(filePath)} (${fileStats.size} bytes)${method}`);
     
     // Send the PDF to Tika server using HTTP PUT request
@@ -308,7 +323,7 @@ async function extractTextWithTika(filePath, options) {
 
     // Get the text from the response
     let text = await response.text();
-    console.log(`Tika returned ${text.length} characters${method}`);
+    console.log(`Tika returned ${text.length} characters${method}${strategyInfo}`);
     
     // If text is empty and we haven't tried OCR yet, provide helpful feedback
     if (text.length === 0 && !useOcr) {
@@ -357,7 +372,10 @@ export async function extractTextFromPDF(filePath) {
     console.warn(`Text extraction validation failed, attempting OCR fallback: ${validation.reason}`);
     
     // ATTEMPT 2: Try with OCR enabled
-    const ocrText = await extractTextWithTika(filePath, { ocr: true });
+    const ocrText = await extractTextWithTika(filePath, { 
+      ocr: true, 
+      ocrStrategy: 'ocr_and_text'
+    });
     const ocrValidation = validateExtractedText(ocrText);
     
     // Check if OCR text is good
@@ -366,9 +384,21 @@ export async function extractTextFromPDF(filePath) {
       return ocrText;
     }
     
-    // ATTEMPT 3: Try alternative extraction method
+    // ATTEMPT 3: Force OCR-only (for image-only/scanned PDFs)
+    console.warn('OCR extraction failed, attempting forced OCR-only extraction...');
+    const forcedOcrText = await extractTextWithTika(filePath, { 
+      ocr: true, 
+      ocrStrategy: 'ocr_only'
+    });
+    const forcedOcrValidation = validateExtractedText(forcedOcrText);
+    if (forcedOcrValidation.ok) {
+      console.log('Forced OCR-only extraction successful');
+      return forcedOcrText;
+    }
+
+    // ATTEMPT 4: Try alternative extraction method
     // This uses special Tika features to extract inline images
-    console.warn('OCR extraction failed, attempting alternative extraction method...');
+    console.warn('Forced OCR-only extraction failed, attempting alternative extraction method...');
     let altValidation;
     try {
       const altText = await extractTextWithTika(filePath, { alternative: true });
