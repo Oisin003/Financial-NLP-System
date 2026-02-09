@@ -44,6 +44,59 @@ export const styles = {
     padding: '20px',
     borderRadius: '8px'
   },
+  auditList: {
+    marginTop: '15px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  auditItem: {
+    background: 'white',
+    borderRadius: '6px',
+    padding: '12px 14px',
+    borderLeft: '4px solid #dc3545'
+  },
+  auditTitle: {
+    fontWeight: '700',
+    marginBottom: '4px',
+    color: '#842029'
+  },
+  auditMeta: {
+    fontSize: '12px',
+    color: '#6c757d',
+    marginBottom: '6px'
+  },
+  auditToggleBtn: {
+    background: '#fff3cd',
+    color: '#664d03',
+    border: '1px solid #ffecb5',
+    padding: '8px 14px',
+    borderRadius: '6px',
+    cursor: 'pointer'
+  },
+  auditPanelHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+  auditCloseBtn: {
+    background: '#6c757d',
+    color: 'white',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  auditMessage: {
+    margin: 0,
+    color: '#5c1c1c'
+  },
+  auditEvidence: {
+    marginTop: '6px',
+    fontSize: '12px',
+    color: '#6c757d'
+  },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',

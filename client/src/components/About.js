@@ -6,13 +6,6 @@ import './About.css';
 function About() {
 	return (
 		<div className="about-page fade-in-up">
-			{/* <section className="about-hero">
-				<h1>About Us</h1>
-				<p>Some text about who we are and what we do.</p>
-				<p>Resize the browser window to see that this page is responsive.</p>
-			</section> */}
-
-			{/* <h2 className="about-section-title">Our Team</h2> */}
 
 			<div className="row g-4">
 				<div className="col-12 col-md-6">
@@ -59,7 +52,7 @@ function About() {
 					</div>
 				</div>
 
-				
+
 			</div>
 		</div>
 	);
@@ -67,4 +60,3 @@ function About() {
 
 export default About;
 
-// export default About;

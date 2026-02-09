@@ -170,6 +170,14 @@ const MIN_TEXT_LENGTH = 30;  // Must have at least 30 characters
 const MIN_WORDS = 10;  // Must have at least 10 words
 const MIN_PRINTABLE_RATIO = 0.8;  // At least 80% must be readable characters
 
+// Basic audit thresholds for risk flagging
+const AUDIT_THRESHOLDS = {
+  overheadRatio: 0.35,
+  currentRatio: 1.5,
+  debtToEquity: 2.0,
+  grossMarginDropPct: 2
+};
+
 /**
  * This function checks if the extracted text is good enough to use
  * It checks: length, word count, and readability
@@ -242,6 +250,216 @@ function validateExtractedText(text) {
 
   // All checks passed!
   return { ok: true };
+}
+
+function parseNumericValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  let cleaned = value.replace(/[$,]/g, '');
+  const hasParens = cleaned.includes('(') && cleaned.includes(')');
+  cleaned = cleaned.replace(/[()]/g, '');
+
+  const number = parseFloat(cleaned);
+  if (Number.isNaN(number)) {
+    return null;
+  }
+
+  if (hasParens || cleaned.startsWith('-')) {
+    return -Math.abs(number);
+  }
+
+  return number;
+}
+
+function extractNumberFromLine(line) {
+  const matches = line.match(/[-(]?\$?\d[\d,]*\.?\d*\)?/g);
+  if (!matches || matches.length === 0) {
+    return null;
+  }
+  return parseNumericValue(matches[matches.length - 1]);
+}
+
+function normalizeTextLines(text) {
+  return (text || '')
+    .split(/\r?\n/)
+    .map(function(line) { return line.trim(); })
+    .filter(Boolean);
+}
+
+function lineHasKeywords(line, keywords) {
+  const lower = line.toLowerCase();
+  return keywords.every(function(keyword) {
+    return lower.includes(keyword);
+  });
+}
+
+function findLineValue(lines, keywordSets) {
+  for (let i = 0; i < keywordSets.length; i++) {
+    const keywords = keywordSets[i];
+    for (let j = 0; j < lines.length; j++) {
+      const line = lines[j];
+      if (lineHasKeywords(line, keywords)) {
+        const value = extractNumberFromLine(line);
+        if (value !== null) {
+          return { value, line };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractGrossMarginPercents(lines) {
+  const values = [];
+  const percentRegex = /(\d+(?:\.\d+)?)\s*%/g;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.toLowerCase().includes('gross margin')) {
+      continue;
+    }
+
+    let match = percentRegex.exec(line);
+    while (match) {
+      const value = parseFloat(match[1]);
+      if (!Number.isNaN(value)) {
+        values.push({ value, line });
+      }
+      match = percentRegex.exec(line);
+    }
+  }
+
+  return values;
+}
+
+function formatEvidenceLine(line) {
+  if (!line) {
+    return null;
+  }
+
+  const withoutImages = line.replace(/\[image:[^\]]+\]/gi, '');
+  const collapsed = withoutImages.replace(/\s+/g, ' ').trim();
+  if (!collapsed) {
+    return null;
+  }
+
+  if (collapsed.length <= 240) {
+    return collapsed;
+  }
+
+  return `${collapsed.slice(0, 237)}...`;
+}
+
+export function analyzeAuditFlags(text) {
+  const flags = [];
+  const lines = normalizeTextLines(text);
+  if (lines.length === 0) {
+    return flags;
+  }
+
+  const overhead = findLineValue(lines, [
+    ['overhead'],
+    ['operating', 'expenses'],
+    ['administrative', 'expenses'],
+    ['general', 'administrative'],
+    ['selling', 'general', 'administrative']
+  ]);
+  const revenue = findLineValue(lines, [
+    ['total', 'revenue'],
+    ['revenue'],
+    ['net', 'sales'],
+    ['sales']
+  ]);
+
+  if (overhead && revenue && revenue.value !== 0) {
+    const ratio = Math.abs(overhead.value) / Math.abs(revenue.value);
+    if (ratio > AUDIT_THRESHOLDS.overheadRatio) {
+      flags.push({
+        id: 'high-overhead',
+        severity: 'high',
+        title: 'High overhead ratio',
+        message: `Overhead ratio is ${(ratio * 100).toFixed(1)}% (threshold ${(AUDIT_THRESHOLDS.overheadRatio * 100).toFixed(0)}%).`,
+        evidence: { overhead: overhead.value, revenue: revenue.value, line: formatEvidenceLine(overhead.line) }
+      });
+    }
+  }
+
+  const operatingCashFlow = findLineValue(lines, [
+    ['net', 'cash', 'operating'],
+    ['operating', 'cash', 'flow'],
+    ['net', 'cash', 'provided', 'by', 'operating']
+  ]);
+  if (operatingCashFlow && operatingCashFlow.value < 0) {
+    flags.push({
+      id: 'negative-operating-cashflow',
+      severity: 'high',
+      title: 'Negative operating cash flow',
+      message: `Operating cash flow is negative (${operatingCashFlow.value}).`,
+      evidence: { value: operatingCashFlow.value, line: formatEvidenceLine(operatingCashFlow.line) }
+    });
+  }
+
+  const grossMargins = extractGrossMarginPercents(lines);
+  if (grossMargins.length >= 2) {
+    const previous = grossMargins[grossMargins.length - 2];
+    const latest = grossMargins[grossMargins.length - 1];
+    if ((previous.value - latest.value) >= AUDIT_THRESHOLDS.grossMarginDropPct) {
+      flags.push({
+        id: 'gross-margin-down',
+        severity: 'medium',
+        title: 'Falling gross margin',
+        message: `Gross margin fell from ${previous.value}% to ${latest.value}%.`,
+        evidence: { previous: previous.value, latest: latest.value, line: formatEvidenceLine(latest.line) }
+      });
+    }
+  } else {
+    const declineRegex = /gross margin.*(decrease|decline|down|lower|deteriorat)/i;
+    const declineLine = lines.find(function(line) {
+      return declineRegex.test(line);
+    });
+    if (declineLine) {
+      flags.push({
+        id: 'gross-margin-down',
+        severity: 'medium',
+        title: 'Falling gross margin',
+        message: 'Gross margin is described as declining.',
+        evidence: { line: formatEvidenceLine(declineLine) }
+      });
+    }
+  }
+
+  const currentRatio = findLineValue(lines, [
+    ['current', 'ratio']
+  ]);
+  if (currentRatio && currentRatio.value < AUDIT_THRESHOLDS.currentRatio) {
+    flags.push({
+      id: 'liquidity-risk',
+      severity: 'medium',
+      title: 'Liquidity risk (low current ratio)',
+      message: `Current ratio is ${currentRatio.value} (threshold ${AUDIT_THRESHOLDS.currentRatio}).`,
+      evidence: { value: currentRatio.value, line: formatEvidenceLine(currentRatio.line) }
+    });
+  }
+
+  const debtToEquity = findLineValue(lines, [
+    ['debt-to-equity'],
+    ['debt/equity'],
+    ['debt', 'to', 'equity']
+  ]);
+  if (debtToEquity && debtToEquity.value > AUDIT_THRESHOLDS.debtToEquity) {
+    flags.push({
+      id: 'leverage-risk',
+      severity: 'medium',
+      title: 'Leverage risk (high debt to equity)',
+      message: `Debt to equity is ${debtToEquity.value} (threshold ${AUDIT_THRESHOLDS.debtToEquity}).`,
+      evidence: { value: debtToEquity.value, line: formatEvidenceLine(debtToEquity.line) }
+    });
+  }
+
+  return flags;
 }
 
 /**
@@ -581,6 +799,10 @@ export async function processDocument(filePath) {
     // Continue even if NER fails (entities will be empty array)
   }
 
+  // ===== STEP 8: Basic audit-style risk flags =====
+  console.log('Step 8: Detecting audit flags...');
+  const auditFlags = analyzeAuditFlags(rawText);
+
   // ===== Return all the results =====
   console.log('Processing complete!');
   return {
@@ -588,7 +810,8 @@ export async function processDocument(filePath) {
     processedTokens: lemmatizedTokens,     // All the processed words
     wordFrequency: wordFrequency,          // Object with word counts
     topWords: topWords,                    // Array of top 20 words with counts
-    entities: entities                     // Array of named entities
+    entities: entities,                    // Array of named entities
+    auditFlags: auditFlags                 // Array of audit risk flags
   };
 }
 

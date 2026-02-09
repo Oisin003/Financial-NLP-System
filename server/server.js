@@ -57,6 +57,12 @@ const ensureDocumentsSchema = async () => {
         allowNull: true
       });
     }
+    if (!table.auditFlags) {
+      await queryInterface.addColumn('documents', 'auditFlags', {
+        type: DataTypes.TEXT,
+        allowNull: true
+      });
+    }
   } catch (error) {
     console.error('Schema check error:', error);
   }

@@ -21,13 +21,13 @@ async function migrate() {
     await sequelize.query(
       'ALTER TABLE documents ADD COLUMN nlpEntities TEXT;'
     );
-    console.log('✓ Added nlpEntities column');
+    console.log('Added nlpEntities column');
     
     console.log('Migration completed successfully!');
     process.exit(0);
   } catch (error) {
     if (error.message.includes('duplicate column name')) {
-      console.log('⚠ Columns already exist. Migration skipped.');
+      console.log('Columns already exist. Migration skipped.');
       process.exit(0);
     } else {
       console.error('Migration failed:', error.message);

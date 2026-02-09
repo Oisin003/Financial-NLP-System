@@ -145,7 +145,7 @@ router.get('/', auth, async (req, res) => {
     const documents = await Document.findAll({
       where: whereClause,
       order: [['uploadDate', 'DESC']],  // Newest first
-      attributes: ['id', 'originalName', 'filename', 'fileSize', 'uploadDate', 'userId'],
+      attributes: ['id', 'originalName', 'filename', 'fileSize', 'uploadDate', 'userId', 'auditFlags'],
       include: [{
         model: User,
         attributes: ['id', 'username', 'email'],  // Include uploader info
@@ -260,6 +260,7 @@ async function processDocumentNLP(document) {
       processedTokens: nlpResults.processedTokens,
       wordFrequency: nlpResults.wordFrequency,
       topWords: nlpResults.topWords,
+      auditFlags: nlpResults.auditFlags || [],
       // Store financial_figures and entities as JSON if present
       financialFigures: microserviceResults.financial_figures || [],
       nlpEntities: microserviceResults.entities || [],
@@ -324,6 +325,7 @@ router.get('/:id/nlp', auth, async (req, res) => {
       processedTokens: document.processedTokens,
       wordFrequency: document.wordFrequency,
       topWords: document.topWords,
+      auditFlags: document.auditFlags || [],
       // Expose financial figures and entities to the frontend
       financial_figures: document.financialFigures || [],
       entities: document.nlpEntities || [],
@@ -356,7 +358,7 @@ router.post('/:id/reprocess', auth, async (req, res) => {
     }
 
     // Reset processing status and start reprocessing
-    await document.update({ nlpProcessed: false });
+    await document.update({ nlpProcessed: false, nlpError: null, auditFlags: [] });
     processDocumentNLP(document);
 
     res.json({ 

@@ -37,6 +37,20 @@ const Document = sequelize.define('Document', {
         this.setDataValue('nlpEntities', JSON.stringify(value));
       }
     },
+
+    // Audit-style flags derived from extracted text (array of objects)
+    auditFlags: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const value = this.getDataValue('auditFlags');
+        if (!value) return [];
+        return JSON.parse(value);
+      },
+      set(value) {
+        this.setDataValue('auditFlags', JSON.stringify(value));
+      }
+    },
   
   // Unique ID for each document 
   id: {

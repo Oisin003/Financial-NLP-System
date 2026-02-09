@@ -1,27 +1,17 @@
 // Import React library - this is needed for all React components
-import React from 'react';
+import React, { useState } from 'react';
 // Import the styling object that contains all CSS styles for this component
 import { styles } from './NLPAnalysis.styles';
 
 /**
  * NLPAnalysisView Component
- * 
- * This component displays the detailed NLP analysis results
- * for a document. It shows statistics, processing times, financial figures, word frequencies,
- * and the extracted text.
- * 
- * PROPS (inputs this component receives):
- * @param {string} documentName - The name of the PDF file being analyzed
- * @param {function} onClose - Function to call when user clicks the close button
- * @param {function} onReprocess - Function to call when user wants to reprocess the document
- * @param {boolean} loading - True if data is still being loaded, false when ready
- * @param {object} nlpData - The NLP analysis data returned from the server
  */
 function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData }) {
-    
+    // Toggle for showing the audit flags card
+    const [showAuditFlags, setShowAuditFlags] = useState(false);
+
     // LOADING STATE:
-    // If data is still loading, show a spinner animation
-    // "return" stops execution here and doesn't render anything else
+    // While data is loading, show a spinner and nothing else.
     if (loading) {
         return (
             <div style={styles.container}>
@@ -40,11 +30,9 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
     }
 
     // NOT PROCESSED STATE:
-    // If the document hasn't been processed yet OR processing failed,
-    // show either an error message or a processing message
-    // Check if nlpData exists first, then check if nlpProcessed is true
+    // If the document is still processing or failed, show a message.
     const isProcessed = nlpData && nlpData.nlpProcessed;
-    
+
     if (!isProcessed) {
         return (
             <div style={styles.container}>
@@ -53,11 +41,10 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                     <h2>NLP Analysis: {documentName}</h2>
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
-                
-                {/* ERROR HANDLING: Check if there's an error message from the server */}
-                {/* Check if nlpData exists and has an error */}
+
+                {/* Show an error if the server provided one */}
                 {(nlpData && nlpData.nlpError) ? (
-                    // IF there's an error, show error message with retry button
+                    // Show error message with a retry button
                     <div style={styles.errorContainer}>
                         {/* Bootstrap Icon for warning triangle */}
                         <i className="bi bi-exclamation-triangle-fill" style={styles.errorIcon}></i>
@@ -73,7 +60,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                         </div>
                     </div>
                 ) : (
-                    // IF no error, document is still being processed - show spinner
+                    // No error yet: still processing
                     <div style={styles.loading}>
                         <div style={styles.spinner}></div>
                         <h3>Processing...</h3>
@@ -85,8 +72,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
     }
 
     // CALCULATE STATISTICS:
-    // Create an object with key statistics from the NLP analysis
-    // Check if data exists before accessing properties to avoid errors
+    // Build a simple stats object, with safe defaults if data is missing.
     const stats = {
         // Total number of characters in the extracted text
         // Use 0 as default if extractedText doesn't exist
@@ -96,6 +82,11 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
         // Number of unique/distinct words (count the keys in wordFrequency object)
         uniqueWords: Object.keys(nlpData.wordFrequency || {}).length
     };
+
+    // Audit flags are optional; default to an empty list if missing.
+    const auditFlags = Array.isArray(nlpData.auditFlags) ? nlpData.auditFlags : [];
+    // Add a friendly label that includes the document ID when available.
+    const documentLabel = nlpData && nlpData.documentId ? `${documentName} (#${nlpData.documentId})` : documentName;
 
     // MAIN RENDER:
     // This is what displays when data is successfully loaded and processed
@@ -116,11 +107,10 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
             </div>
 
             {/* ==================== CONTENT SECTION ==================== */}
-            {/* This div contains all the analysis results */}
-            {/* This div contains all the analysis results */}
+            {/* Everything below is the analysis output */}
             <div style={styles.content}>
                 {/* ==================== STATISTICS SECTION ==================== */}
-                {/* Shows quick overview: character count, word count, unique words */}
+                {/* Quick overview: characters, words, and unique words */}
                 <div style={styles.section}>
                     <h3>
                         <i className="bi bi-graph-up me-2"></i>
@@ -147,9 +137,62 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                     </div>
                 </div>
 
+                {/* ==================== AUDIT FLAGS BUTTON ==================== */}
+                <div style={styles.section}>
+                    <h3>
+                        <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                        Audit Flags
+                    </h3>
+                    <button
+                        type="button"
+                        style={styles.auditToggleBtn}
+                        onClick={() => setShowAuditFlags(!showAuditFlags)}
+                    >
+                        {showAuditFlags ? 'Hide audit flags' : 'Show audit flags'}
+                    </button>
+                    {!showAuditFlags && (
+                        <p style={styles.description}></p>
+                    )}
+                </div>
+
+                {showAuditFlags && (
+                    <div style={styles.section}>
+                        <div style={styles.auditPanelHeader}>
+                            <h3 style={{ margin: 0 }}>
+                                <i className="bi bi-flag-fill me-2"></i>
+                                Audit Flags for {documentLabel}
+                            </h3>
+                            <button
+                                type="button"
+                                style={styles.auditCloseBtn}
+                                onClick={() => setShowAuditFlags(false)}
+                            >
+                                Close
+                            </button>
+                        </div>
+                        {auditFlags.length > 0 ? (
+                            <div style={styles.auditList}>
+                                {auditFlags.map((flag, index) => (
+                                    <div key={flag.id || index} style={styles.auditItem}>
+                                        <div style={styles.auditMeta}>{documentLabel}</div>
+                                        <div style={styles.auditTitle}>{flag.title || 'Audit flag'}</div>
+                                        <p style={styles.auditMessage}>{flag.message}</p>
+                                        {flag.evidence && flag.evidence.line && (
+                                            <div style={styles.auditEvidence}>
+                                                Evidence: {flag.evidence.line}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={styles.description}>No audit flags detected with current rules.</p>
+                        )}
+                    </div>
+                )}
+
                 {/* ==================== PROCESSING TIME SECTION ==================== */}
-                {/* Only show this section IF timing data exists */}
-                {/* The "&&" operator means: if left side is true, render the right side */}
+                {/* Only show this section if timing data exists */}
                 {nlpData.timing && nlpData.timing.duration && (
                     <div style={styles.section}>
                         <h3>
@@ -167,7 +210,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                             <div style={styles.timingItem}>
                                 <span style={styles.timingLabel}>Started:</span>
                                 <span style={styles.timingValue}>
-                                    {/* Convert timestamp to Irish date/time format (DD/MM/YYYY, 24-hour) */}
+                                    {/* Convert timestamp to Irish date/time format */}
                                     {new Date(nlpData.timing.startTime).toLocaleString('en-IE', { dateStyle: 'short', timeStyle: 'medium' })}
                                 </span>
                             </div>
@@ -183,8 +226,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                 )}
 
                 {/* ==================== FINANCIAL FIGURES SECTION ==================== */}
-                {/* Only show IF financial figures array exists AND has items */}
-                {/* Array.isArray() checks if it's actually an array */}
+                {/* Only show if figures from the NLP service are available */}
                 {Array.isArray(nlpData.financial_figures) && nlpData.financial_figures.length > 0 && (
                     <div style={styles.section}>
                         <h3>
@@ -192,8 +234,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                             Financial Figures
                         </h3>
                         <div style={styles.financialFiguresList}>
-                            {/* .map() loops through each financial figure and creates a display element */}
-                            {/* "fig" is the current item, "idx" is its index/position */}
+                            {/* Loop through each financial figure and display it */}
                             {nlpData.financial_figures.map((fig, idx) => (
                                 // Each item needs a unique "key" prop for React to track it
                                 <div key={idx} style={styles.financialFigureItem}>
@@ -218,7 +259,6 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                     </h3>
                     <div style={styles.wordList}>
                         {/* Loop through the topWords array */}
-                        {/* Each "item" has: { word: "example", count: 5 } */}
                         {nlpData.topWords.map((item, index) => (
                             <div key={index} style={styles.wordItem}>
                                 {/* Show ranking number (e.g., #1, #2, #3) */}
@@ -256,8 +296,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                         Words after tokenization, stopword removal, and lemmatization
                     </p>
                     <div style={styles.tokenBox}>
-                        {/* .slice(0, 100) takes only the first 100 tokens */}
-                        {/* .map() creates a <span> for each token */}
+                        {/* Show only the first 100 tokens to keep the UI fast */}
                         {nlpData.processedTokens.slice(0, 100).map((token, index) => (
                             <span key={index} style={styles.token}>{token}</span>
                         ))}

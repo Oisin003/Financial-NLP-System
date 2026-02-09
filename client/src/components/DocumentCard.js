@@ -56,6 +56,15 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
             </small>
           </div>
 
+          {Array.isArray(doc.auditFlags) && doc.auditFlags.length > 0 && (
+            <div className="text-center mb-3">
+              <span className="badge bg-danger-subtle text-danger border border-danger">
+                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                Audit flags: {doc.auditFlags.length}
+              </span>
+            </div>
+          )}
+
           {/* Action buttons (full width) */}
           <div>
             {/* Download button */}
