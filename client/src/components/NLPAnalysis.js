@@ -8,7 +8,7 @@
  * https://en.wikipedia.org/wiki/Natural_language_processing
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import API_URL from '../config';
 import NLPAnalysisView from './NLPAnalysisView';
 
@@ -16,26 +16,14 @@ function NLPAnalysis({ documentId, documentName, onClose }) {
   // State to store NLP data from the server
   const [nlpData, setNlpData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const latestNlpDataRef = useRef(null);
 
-  // Fetch NLP data when component loads
   useEffect(() => {
-    fetchNLPData();
-    
-    // Check every 3 seconds if document is still processing
-    const interval = setInterval(() => {
-      // Check if nlpData exists and if it's not processed yet
-      const isNotProcessed = nlpData && !nlpData.nlpProcessed;
-      if (isNotProcessed) {
-        fetchNLPData();
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId]);
+    latestNlpDataRef.current = nlpData;
+  }, [nlpData]);
 
   // Get NLP analysis from the server
-  const fetchNLPData = async () => {
+  const fetchNLPData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/documents/${documentId}/nlp`, {
@@ -56,19 +44,39 @@ function NLPAnalysis({ documentId, documentName, onClose }) {
       console.error('Error fetching NLP data:', err);
       setLoading(false);
     }
-  };
+  }, [documentId]);
+
+  // Fetch NLP data when component loads
+  useEffect(() => {
+    fetchNLPData();
+    
+    // Check every 3 seconds if document is still processing
+    const interval = setInterval(() => {
+      const current = latestNlpDataRef.current;
+      if (current && !current.nlpProcessed) {
+        fetchNLPData();
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [fetchNLPData]);
 
   // Request server to reprocess the document
   const reprocessDocument = async () => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${API_URL}/api/documents/${documentId}/reprocess`, {
+      const response = await fetch(`${API_URL}/api/documents/${documentId}/reprocess`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to start reprocessing');
+      }
       
       setNlpData({ nlpProcessed: false });
       setLoading(true);
+      fetchNLPData();
     } catch (err) {
       console.error('Error reprocessing:', err);
     }
