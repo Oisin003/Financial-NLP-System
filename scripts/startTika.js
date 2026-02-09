@@ -1,6 +1,10 @@
-const { spawn } = require('child_process');
-const { existsSync, readdirSync } = require('fs');
-const path = require('path');
+import { spawn } from 'child_process';
+import { existsSync, readdirSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Allow overriding paths via environment variables
 const jarPath = process.env.TIKA_JAR || 'E:\\tika-server-standard-3.2.3.jar';
