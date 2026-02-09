@@ -42,22 +42,44 @@ export const formatDate = (dateString) => {
  * @returns {Object} Documents grouped by month 
  * 
  * Purpose: Organize documents into monthly folders for better navigation
+ * 
+ * Example output:
+ * {
+ *   "January 2026": [doc1, doc2],
+ *   "December 2025": [doc3]
+ * }
  */
-export const groupDocumentsByMonth = (documents) => {
-  const grouped = {};
+export function groupDocumentsByMonth(documents) {
+  // Create an empty object to hold our grouped documents
+  const documentsByMonth = {};
 
-  documents.forEach(doc => {
-    const date = new Date(doc.uploadDate);
-    const monthYear = date.toLocaleDateString('en-IE', { month: 'long', year: 'numeric' });
+  // Loop through each document one at a time
+  for (let i = 0; i < documents.length; i++) {
+    const currentDocument = documents[i];
     
-    if (!grouped[monthYear]) {
-      grouped[monthYear] = [];
+    // Get the upload date and convert it to a Date object
+    const uploadDate = new Date(currentDocument.uploadDate);
+    
+    // Create a readable month-year string like "January 2026"
+    const monthYearString = uploadDate.toLocaleDateString('en-IE', { 
+      month: 'long', 
+      year: 'numeric' 
+    });
+    
+    // Check if this month already exists in our grouped object
+    const monthAlreadyExists = documentsByMonth[monthYearString] !== undefined;
+    
+    if (!monthAlreadyExists) {
+      // If this is the first document for this month, create an empty array
+      documentsByMonth[monthYearString] = [];
     }
-    grouped[monthYear].push(doc);
-  });
+    
+    // Add the current document to its month's array
+    documentsByMonth[monthYearString].push(currentDocument);
+  }
 
-  return grouped;
-};
+  return documentsByMonth;
+}
 
 /**
  * Download a document file from the server
@@ -66,36 +88,53 @@ export const groupDocumentsByMonth = (documents) => {
  * @param {string} originalName - Original filename for download
  * @returns {Promise<void>}
  * 
- * Process:
- * 1. Fetch file from server with authentication
- * 2. Create temporary download link
- * 3. Trigger browser download
- * 4. Clean up temporary resources
+ * How this works:
+ * 1. Fetch the file data from the server (with authentication)
+ * 2. Convert the response to a "blob" (binary data)
+ * 3. Create a temporary link element
+ * 4. Set the link to download the blob as a file
+ * 5. Click the link programmatically to start download
+ * 6. Clean up the temporary link
  */
-export const downloadDocument = async (documentId, originalName) => {
+export async function downloadDocument(documentId, originalName) {
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+    // Step 1: Get the authentication token
+    const authToken = localStorage.getItem('token');
+    
+    // Step 2: Fetch the file from the server
+    const serverResponse = await fetch(`${API_URL}/api/documents/${documentId}`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${authToken}`
       }
     });
 
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = originalName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } else {
+    // Step 3: Check if the request was successful
+    if (!serverResponse.ok) {
       alert('Failed to download document');
+      return;
     }
-  } catch (err) {
-    console.error('Download error:', err);
+    
+    // Step 4: Convert response to binary data (blob)
+    const fileData = await serverResponse.blob();
+    
+    // Step 5: Create a temporary URL for the blob
+    const temporaryUrl = window.URL.createObjectURL(fileData);
+    
+    // Step 6: Create a temporary link element
+    const downloadLink = document.createElement('a');
+    downloadLink.href = temporaryUrl;
+    downloadLink.download = originalName;  // Set the filename for download
+    
+    // Step 7: Add link to page, click it, then remove it
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    
+    // Step 8: Clean up - remove the temporary URL and link
+    window.URL.revokeObjectURL(temporaryUrl);
+    document.body.removeChild(downloadLink);
+    
+  } catch (networkError) {
+    console.error('Download error:', networkError);
     alert('Network error. Please try again.');
   }
-};
+}

@@ -21,6 +21,22 @@ function AdminPanel() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('users'); // 'users' or 'processing'
 
+  // CALCULATED VALUES:
+  // These values are derived from the users array for easier reading
+  
+  // Count all users
+  const totalUserCount = users.length;
+  
+  // Count only admin users
+  const adminCount = users.filter(function(user) {
+    return user.role === 'admin';
+  }).length;
+  
+  // Count regular (non-admin) users
+  const regularUserCount = users.filter(function(user) {
+    return user.role !== 'admin';
+  }).length;
+
   // Fetch users when component loads
   useEffect(() => {
     fetchUsers();
@@ -171,7 +187,7 @@ function AdminPanel() {
                         </div>
                         <div>
                           <small className="text-muted d-block mb-1">Total Users</small>
-                          <h3 className="mb-0">{users.length}</h3>
+                          <h3 className="mb-0">{totalUserCount}</h3>
                         </div>
                       </div>
                     </div>
@@ -188,7 +204,7 @@ function AdminPanel() {
                         </div>
                         <div>
                           <small className="text-muted d-block mb-1">Administrators</small>
-                          <h3 className="mb-0 fw-bold">{users.filter(u => u.role === 'admin').length}</h3>
+                          <h3 className="mb-0 fw-bold">{adminCount}</h3>
                         </div>
                       </div>
                     </div>
@@ -205,7 +221,7 @@ function AdminPanel() {
                         </div>
                         <div>
                           <small className="text-muted d-block mb-1">Regular Users</small>
-                          <h3 className="mb-0 fw-bold">{users.filter(u => u.role !== 'admin').length}</h3>
+                          <h3 className="mb-0 fw-bold">{regularUserCount}</h3>
                         </div>
                       </div>
                     </div>

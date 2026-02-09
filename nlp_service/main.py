@@ -114,11 +114,29 @@ financial_terms = {
 custom_stopwords = default_stopwords - financial_terms
 
 # Preprocessing function
+# This function cleans up text by:
+# 1. Converting to lowercase
+# 2. Removing punctuation
+# 3. Removing stopwords (but keeping financial terms)
 def preprocess(text):
-    tokens = [word.lower() for word in text.split()]
-    tokens = [word.strip(string.punctuation) for word in tokens]
-    tokens = [word for word in tokens if word and word not in custom_stopwords]
-    return ' '.join(tokens)
+    # Step 1: Split text into words and convert to lowercase
+    words = text.split()
+    lowercase_words = [word.lower() for word in words]
+    
+    # Step 2: Remove punctuation from each word
+    words_without_punctuation = [word.strip(string.punctuation) for word in lowercase_words]
+    
+    # Step 3: Keep words that are not empty AND not in our stopwords list
+    cleaned_words = []
+    for word in words_without_punctuation:
+        is_not_empty = word != ''
+        is_not_stopword = word not in custom_stopwords
+        if is_not_empty and is_not_stopword:
+            cleaned_words.append(word)
+    
+    # Step 4: Join words back into a single string
+    cleaned_text = ' '.join(cleaned_words)
+    return cleaned_text
 
 # Health check endpoint: lets you verify the service is running
 @app.get("/")
@@ -130,88 +148,147 @@ class TextRequest(BaseModel):
     text: str  # The text to analyze for named entities
 
 # NER endpoint: receives text and returns detected entities
+# NER = Named Entity Recognition (finding names, places, money amounts, etc.)
 @app.post("/ner")
 def extract_entities(request: TextRequest):
-    doc = nlp(request.text)
-    entities = [
-        {
-            "text": ent.text,
-            "label": ent.label_,
-            "start_char": ent.start_char,
-            "end_char": ent.end_char
+    # Process the text using spaCy's NLP model
+    processed_document = nlp(request.text)
+    
+    # Extract all entities found in the text
+    found_entities = []
+    for entity in processed_document.ents:
+        entity_info = {
+            "text": entity.text,              # The actual text (e.g., "$1,000")
+            "label": entity.label_,           # The type (e.g., "MONEY", "PERSON")
+            "start_char": entity.start_char,  # Where it starts in the text
+            "end_char": entity.end_char       # Where it ends in the text
         }
-        for ent in doc.ents
-    ]
-    return {"entities": entities, "input": request.text}
+        found_entities.append(entity_info)
+    
+    return {"entities": found_entities, "input": request.text}
 
 
-# --- New endpoint for full financial document analysis ---
+# --- Full Financial Document Analysis Endpoint ---
+# This endpoint performs complete NLP analysis on financial documents
 @app.post("/analyze")
 def analyze_document(request: TextRequest):
+    # Record start time to measure how long processing takes
     start_time = time.time()
-    text = request.text
+    original_text = request.text
 
-    # 1. Preprocess text (retain financial terms)
-    preprocessed_text = preprocess(text)
+    # ========== STEP 1: Preprocess the text ==========
+    # Clean up the text by removing stopwords but keeping financial terms
+    cleaned_text = preprocess(original_text)
 
-    # 2. NER extraction
-    doc = nlp(text)
-    entities = [
-        {
-            "text": ent.text,
-            "label": ent.label_,
-            "start_char": ent.start_char,
-            "end_char": ent.end_char
+    # ========== STEP 2: Extract Named Entities (NER) ==========
+    # Use spaCy to find entities like people, organizations, money amounts
+    processed_document = nlp(original_text)
+    
+    # Build list of all entities found
+    all_entities = []
+    for entity in processed_document.ents:
+        entity_info = {
+            "text": entity.text,
+            "label": entity.label_,
+            "start_char": entity.start_char,
+            "end_char": entity.end_char
         }
-        for ent in doc.ents
-    ]
+        all_entities.append(entity_info)
 
-    # Extract key financial figures (all MONEY entities, labeled separately)
-    financial_figures = [
-        {
-            "text": ent["text"],
-            "start_char": ent["start_char"],
-            "end_char": ent["end_char"]
-        }
-        for ent in entities if ent["label"] == "MONEY"
-    ]
+    # ========== STEP 3: Extract Financial Figures ==========
+    # Filter to get only MONEY entities (dollar amounts, etc.)
+    financial_figures = []
+    non_money_entities = []
+    
+    for entity in all_entities:
+        if entity["label"] == "MONEY":
+            # This is a money amount - add to financial figures
+            money_info = {
+                "text": entity["text"],
+                "start_char": entity["start_char"],
+                "end_char": entity["end_char"]
+            }
+            financial_figures.append(money_info)
+        else:
+            # This is another type of entity - keep separately
+            non_money_entities.append(entity)
 
-    # 3. Topic modeling (TF-IDF + LDA)
-    # For a single document, LDA is limited, but we can split into sentences for demo
+    # ========== STEP 4: Topic Modeling (LDA) ==========
+    # Find the main topics discussed in the document
     from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
     import re
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    processed_sentences = [preprocess(s) for s in sentences if s.strip()]
+    
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?]) +', original_text)
+    
+    # Clean each sentence
+    processed_sentences = []
+    for sentence in sentences:
+        if sentence.strip():  # Only process non-empty sentences
+            cleaned_sentence = preprocess(sentence)
+            processed_sentences.append(cleaned_sentence)
+    
+    # LDA needs at least 2 documents to work
     if len(processed_sentences) < 2:
-        processed_sentences = [preprocessed_text, preprocessed_text]  # LDA needs >1 doc
-    vectorizer = TfidfVectorizer(stop_words=list(custom_stopwords | ENGLISH_STOP_WORDS))
-    X = vectorizer.fit_transform(processed_sentences)
-    lda = LatentDirichletAllocation(n_components=2, random_state=42)
-    lda.fit(X)
+        processed_sentences = [cleaned_text, cleaned_text]
+    
+    # Create TF-IDF vectors from sentences
+    all_stopwords = list(custom_stopwords | ENGLISH_STOP_WORDS)
+    vectorizer = TfidfVectorizer(stop_words=all_stopwords)
+    tfidf_matrix = vectorizer.fit_transform(processed_sentences)
+    
+    # Run LDA to find 2 main topics
+    lda_model = LatentDirichletAllocation(n_components=2, random_state=42)
+    lda_model.fit(tfidf_matrix)
+    
+    # Get the top 5 keywords for each topic
     topic_words = []
-    for idx, topic in enumerate(lda.components_):
-        top_indices = topic.argsort()[-5:][::-1]
-        words = [vectorizer.get_feature_names_out()[i] for i in top_indices]
-        topic_words.append({"topic": idx+1, "keywords": words})
+    feature_names = vectorizer.get_feature_names_out()
+    
+    for topic_number, topic_weights in enumerate(lda_model.components_):
+        # Get indices of top 5 words for this topic
+        top_word_indices = topic_weights.argsort()[-5:][::-1]
+        # Convert indices to actual words
+        top_keywords = [feature_names[index] for index in top_word_indices]
+        topic_words.append({
+            "topic": topic_number + 1,
+            "keywords": top_keywords
+        })
 
-    # 4. Simple extractive summary: sentences with most MONEY entities
-    summary_sentences = []
-    for sent in sentences:
-        sent_doc = nlp(sent)
-        if any(ent.label_ == "MONEY" for ent in sent_doc.ents):
-            summary_sentences.append(sent)
-    summary = " ".join(summary_sentences) if summary_sentences else sentences[0] if sentences else text
+    # ========== STEP 5: Create Summary ==========
+    # Find sentences that mention money (these are likely important)
+    sentences_with_money = []
+    for sentence in sentences:
+        sentence_doc = nlp(sentence)
+        # Check if this sentence contains any MONEY entities
+        has_money_mention = False
+        for entity in sentence_doc.ents:
+            if entity.label_ == "MONEY":
+                has_money_mention = True
+                break
+        if has_money_mention:
+            sentences_with_money.append(sentence)
+    
+    # Build summary from money-related sentences, or use first sentence as fallback
+    if len(sentences_with_money) > 0:
+        summary = " ".join(sentences_with_money)
+    elif len(sentences) > 0:
+        summary = sentences[0]
+    else:
+        summary = original_text
 
+    # ========== STEP 6: Calculate Processing Time ==========
     end_time = time.time()
     processing_time = end_time - start_time
 
+    # ========== Return Results ==========
     return {
-        "entities": [ent for ent in entities if ent["label"] != "MONEY"],
+        "entities": non_money_entities,
         "financial_figures": financial_figures,
         "topics": topic_words,
         "summary": summary,
         "processing_time_seconds": round(processing_time, 3),
-        "input": text
+        "input": original_text
     }
 
 # https://www.geeksforgeeks.org/python/testing-fastapi-application/

@@ -20,21 +20,59 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- SMALL HELPERS ---
-// Keep role checks in one place to avoid repeating logic
-const buildWhereClause = (req, id) => {
+// --- HELPER FUNCTIONS ---
+// These helper functions keep role-checking logic in one place
+
+/**
+ * Build a database filter based on user's role
+ * 
+ * Admins can see all documents
+ * Regular users can only see their own documents
+ * 
+ * @param {Object} request - The HTTP request object (contains user info)
+ * @param {number} documentId - Optional document ID to filter by
+ * @returns {Object} Filter object for database query
+ */
+function buildDatabaseFilter(request, documentId) {
+  // Get the user's role from the request
+  const userRole = request.user.role;
+  const userId = request.user.id;
+  
+  // Check if user is an admin
+  const isAdmin = userRole === 'admin';
+  
   // Admins can see everything
-  if (req.user.role === 'admin') {
-    return id ? { id } : {};
+  if (isAdmin) {
+    // If documentId is provided, filter by just that ID
+    // Otherwise, return empty filter (no restrictions)
+    if (documentId) {
+      return { id: documentId };
+    } else {
+      return {};
+    }
   }
-
+  
   // Regular users can only see their own documents
-  return id ? { id, userId: req.user.id } : { userId: req.user.id };
-};
+  if (documentId) {
+    // Filter by both document ID and user ID
+    return { id: documentId, userId: userId };
+  } else {
+    // Filter by just user ID
+    return { userId: userId };
+  }
+}
 
-const findDocument = (req, id) => {
-  return Document.findOne({ where: buildWhereClause(req, id) });
-};
+/**
+ * Find a single document that the user has access to
+ * 
+ * @param {Object} request - The HTTP request object
+ * @param {number} documentId - The ID of the document to find
+ * @returns {Promise<Document|null>} The document or null if not found
+ */
+function findDocumentForUser(request, documentId) {
+  const filter = buildDatabaseFilter(request, documentId);
+  return Document.findOne({ where: filter });
+}
 
 // --- FILE UPLOAD CONFIGURATION ---
 
@@ -138,12 +176,12 @@ router.get('/', auth, async (req, res) => {
     // Import User model to include user info in results
     const { User } = await import('../models/User.js');
 
-    // Build a simple filter based on role
-    const whereClause = buildWhereClause(req);
+    // Build a database filter based on user's role
+    const databaseFilter = buildDatabaseFilter(req);
 
     // Fetch documents (newest first)
     const documents = await Document.findAll({
-      where: whereClause,
+      where: databaseFilter,
       order: [['uploadDate', 'DESC']],  // Newest first
       attributes: ['id', 'originalName', 'filename', 'fileSize', 'uploadDate', 'userId', 'auditFlags'],
       include: [{
@@ -167,8 +205,8 @@ router.get('/', auth, async (req, res) => {
  */
 router.get('/:id', auth, async (req, res) => {
   try {
-    // Find the document (role-aware)
-    const document = await findDocument(req, req.params.id);
+    // Find the document (checks user has permission to access it)
+    const document = await findDocumentForUser(req, req.params.id);
 
     // Check if document exists in database
     if (!document) {
@@ -195,8 +233,8 @@ router.get('/:id', auth, async (req, res) => {
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Find the document (role-aware)
-    const document = await findDocument(req, req.params.id);
+    // Find the document (checks user has permission to delete it)
+    const document = await findDocumentForUser(req, req.params.id);
 
     // Check if document exists
     if (!document) {
@@ -300,8 +338,8 @@ async function processDocumentNLP(document) {
  */
 router.get('/:id/nlp', auth, async (req, res) => {
   try {
-    // Find the document (role-aware)
-    const document = await findDocument(req, req.params.id);
+    // Find the document (checks user has permission to view it)
+    const document = await findDocumentForUser(req, req.params.id);
 
     // Check if document exists
     if (!document) {
@@ -349,8 +387,8 @@ router.get('/:id/nlp', auth, async (req, res) => {
  */
 router.post('/:id/reprocess', auth, async (req, res) => {
   try {
-    // Find the document (role-aware)
-    const document = await findDocument(req, req.params.id);
+    // Find the document (checks user has permission to reprocess it)
+    const document = await findDocumentForUser(req, req.params.id);
 
     // Check if document exists
     if (!document) {

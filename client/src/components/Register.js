@@ -26,23 +26,58 @@ function Register({ onLogin }) {
     setErrors([]); // Clear errors when user starts typing
   };
 
-  // Validate password strength (must meet all requirements)
-  const validatePassword = (password) => {
-    const rules = [
-      { test: /.{8,}/, message: 'Password must be at least 8 characters long' },
-      { test: /[A-Z]/, message: 'Password must contain at least one uppercase letter' },
-      { test: /[a-z]/, message: 'Password must contain at least one lowercase letter' },
-      { test: /[0-9]/, message: 'Password must contain at least one number' },
-      { test: /[@$!%*?&#]/, message: 'Password must contain at least one special character (@$!%*?&#)' }
+  /**
+   * Validate password strength
+   * 
+   * Password must meet ALL of these requirements:
+   * - At least 8 characters long
+   * - Contains at least one UPPERCASE letter (A-Z)
+   * - Contains at least one lowercase letter (a-z)
+   * - Contains at least one number (0-9)
+   * - Contains at least one special character (@$!%*?&#)
+   * 
+   * @param {string} password - The password to validate
+   * @returns {Array} - Array of error messages (empty if password is valid)
+   */
+  function validatePassword(password) {
+    // Define all the rules the password must pass
+    const passwordRules = [
+      { 
+        pattern: /.{8,}/, 
+        errorMessage: 'Password must be at least 8 characters long' 
+      },
+      { 
+        pattern: /[A-Z]/, 
+        errorMessage: 'Password must contain at least one uppercase letter' 
+      },
+      { 
+        pattern: /[a-z]/, 
+        errorMessage: 'Password must contain at least one lowercase letter' 
+      },
+      { 
+        pattern: /[0-9]/, 
+        errorMessage: 'Password must contain at least one number' 
+      },
+      { 
+        pattern: /[@$!%*?&#]/, 
+        errorMessage: 'Password must contain at least one special character (@$!%*?&#)' 
+      }
     ];
 
-    // Return array of failed validation messages
-    const errors = rules
-      .filter(rule => !rule.test.test(password))
-      .map(rule => rule.message);
+    // Check each rule and collect error messages for failed rules
+    const failedRules = [];
+    
+    for (let i = 0; i < passwordRules.length; i++) {
+      const rule = passwordRules[i];
+      const passwordPassesThisRule = rule.pattern.test(password);
+      
+      if (!passwordPassesThisRule) {
+        failedRules.push(rule.errorMessage);
+      }
+    }
 
-    return errors;
-  };
+    return failedRules;
+  }
 
   // Handle form submission
   const handleSubmit = async (e) => {
