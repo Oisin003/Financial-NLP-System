@@ -36,6 +36,29 @@ function About() {
 				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
+							src="/images/Outlook-ixaxuupp.jpg"
+							alt="Achilles Ltd logo"
+							className="about-card-image"
+						/>
+						<div className="card-body about-card-body">
+							<h5 className="card-title">Our Partners</h5>
+							<p className="text-muted mb-1">Strategic Collaboration</p>
+							<p className="card-text">
+								Our partnership with Helix Innovations Partnerships Limited provides us with 
+								access to a diverse range of real-world financial documents, including annual 
+								reports, regulatory filings, and audit materials. This collaboration enables 
+								us to train and validate our NLP models against authentic industry data, 
+								ensuring our analysis tools meet the rigorous standards expected by 
+								financial professionals.
+							</p>
+						</div>
+					</div>
+				</div>
+
+
+				<div className="col-12 col-md-6">
+					<div className="card h-100">
+						<img
 							src="/images/logo.png"
 							alt="Achilles Ltd logo"
 							className="about-card-image"
