@@ -157,6 +157,94 @@ export const styles = {
     fontSize: '13px',
     marginLeft: '8px',
   },
+  // --- Named Entities Styles ---
+  entitiesContainer: {
+    marginTop: '15px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+  entityTypeGroup: {
+    background: 'white',
+    borderRadius: '6px',
+    padding: '12px 15px',
+    borderLeft: '4px solid #6c757d'
+  },
+  entityTypeHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '10px'
+  },
+  entityTypeLabel: {
+    fontWeight: '600',
+    fontSize: '14px',
+    color: '#333',
+    textTransform: 'uppercase'
+  },
+  entityTypeCount: {
+    background: '#6c757d',
+    color: 'white',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '11px'
+  },
+  entityTagsContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  entityTag: {
+    padding: '4px 10px',
+    borderRadius: '12px',
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+  // Entity type color variations
+  entityTagORG: {
+    background: '#e3f2fd',
+    color: '#1565c0'
+  },
+  entityTagPERSON: {
+    background: '#fce4ec',
+    color: '#c2185b'
+  },
+  entityTagGPE: {
+    background: '#e8f5e9',
+    color: '#2e7d32'
+  },
+  entityTagDATE: {
+    background: '#fff3e0',
+    color: '#ef6c00'
+  },
+  entityTagCARDINAL: {
+    background: '#f3e5f5',
+    color: '#7b1fa2'
+  },
+  entityTagPERCENT: {
+    background: '#e0f7fa',
+    color: '#00838f'
+  },
+  entityTagLOC: {
+    background: '#e8eaf6',
+    color: '#3949ab'
+  },
+  entityTagPRODUCT: {
+    background: '#fbe9e7',
+    color: '#d84315'
+  },
+  entityTagEVENT: {
+    background: '#fff8e1',
+    color: '#ff8f00'
+  },
+  entityTagLAW: {
+    background: '#efebe9',
+    color: '#5d4037'
+  },
+  entityTagDefault: {
+    background: '#f5f5f5',
+    color: '#616161'
+  },
   // --- Timing Information Styles ---
   timingInfo: {
     marginTop: '15px',

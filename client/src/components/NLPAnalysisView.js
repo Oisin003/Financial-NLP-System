@@ -325,6 +325,116 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                     </div>
                 )}
 
+                {/* ==================== NAMED ENTITIES SECTION ==================== */}
+                {/* Shows extracted entities grouped by type (ORG, PERSON, GPE, DATE, etc.) */}
+                {Array.isArray(nlpData.entities) && nlpData.entities.length > 0 && (
+                    <div style={styles.section}>
+                        <h3>
+                            <i className="bi bi-tags-fill me-2"></i>
+                            Named Entities
+                        </h3>
+                        <p style={styles.description}>
+                            Organizations, people, locations, dates, and other entities extracted from the document
+                        </p>
+                        <div style={styles.entitiesContainer}>
+                            {/* Group entities by their label type */}
+                            {(() => {
+                                // Create a map of entity type -> array of unique entity texts
+                                const entityGroups = {};
+                                nlpData.entities.forEach(ent => {
+                                    if (!entityGroups[ent.label]) {
+                                        entityGroups[ent.label] = new Set();
+                                    }
+                                    entityGroups[ent.label].add(ent.text);
+                                });
+                                
+                                // Entity type descriptions for tooltips
+                                const typeDescriptions = {
+                                    'ORG': 'Organizations & Companies',
+                                    'PERSON': 'People & Names',
+                                    'GPE': 'Countries, Cities & States',
+                                    'LOC': 'Locations & Places',
+                                    'DATE': 'Dates & Time Periods',
+                                    'CARDINAL': 'Numbers & Quantities',
+                                    'PERCENT': 'Percentages',
+                                    'PRODUCT': 'Products & Services',
+                                    'EVENT': 'Events',
+                                    'LAW': 'Laws & Regulations',
+                                    'NORP': 'Nationalities & Groups',
+                                    'FAC': 'Facilities & Buildings',
+                                    'WORK_OF_ART': 'Works of Art',
+                                    'LANGUAGE': 'Languages',
+                                    'ORDINAL': 'Ordinal Numbers',
+                                    'TIME': 'Times',
+                                    'QUANTITY': 'Quantities'
+                                };
+                                
+                                // Sort entity types by count (most common first)
+                                const sortedTypes = Object.keys(entityGroups).sort(
+                                    (a, b) => entityGroups[b].size - entityGroups[a].size
+                                );
+                                
+                                return sortedTypes.map(entityType => {
+                                    const uniqueEntities = Array.from(entityGroups[entityType]);
+                                    // Get the color style for this entity type
+                                    const colorStyle = styles[`entityTag${entityType}`] || styles.entityTagDefault;
+                                    // Border color based on entity type
+                                    const borderColors = {
+                                        'ORG': '#1565c0',
+                                        'PERSON': '#c2185b',
+                                        'GPE': '#2e7d32',
+                                        'LOC': '#3949ab',
+                                        'DATE': '#ef6c00',
+                                        'CARDINAL': '#7b1fa2',
+                                        'PERCENT': '#00838f',
+                                        'PRODUCT': '#d84315',
+                                        'EVENT': '#ff8f00',
+                                        'LAW': '#5d4037'
+                                    };
+                                    
+                                    return (
+                                        <div 
+                                            key={entityType} 
+                                            style={{
+                                                ...styles.entityTypeGroup,
+                                                borderLeftColor: borderColors[entityType] || '#6c757d'
+                                            }}
+                                        >
+                                            <div style={styles.entityTypeHeader}>
+                                                <span style={styles.entityTypeLabel}>
+                                                    {typeDescriptions[entityType] || entityType}
+                                                </span>
+                                                <span style={{
+                                                    ...styles.entityTypeCount,
+                                                    background: borderColors[entityType] || '#6c757d'
+                                                }}>
+                                                    {uniqueEntities.length}
+                                                </span>
+                                            </div>
+                                            <div style={styles.entityTagsContainer}>
+                                                {uniqueEntities.slice(0, 20).map((text, idx) => (
+                                                    <span 
+                                                        key={idx} 
+                                                        style={{...styles.entityTag, ...colorStyle}}
+                                                        title={`Type: ${entityType}`}
+                                                    >
+                                                        {text}
+                                                    </span>
+                                                ))}
+                                                {uniqueEntities.length > 20 && (
+                                                    <span style={{...styles.entityTag, ...styles.entityTagDefault}}>
+                                                        +{uniqueEntities.length - 20} more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+                )}
+
                 {/* ==================== TOP WORDS SECTION ==================== */}
                 {/* Shows the 20 most frequently appearing words */}
                 <div style={styles.section}>

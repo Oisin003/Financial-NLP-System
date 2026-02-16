@@ -33,6 +33,42 @@ L00172671 - Oisin Gibson
 - [server/tests/auth.test.js](server/tests/auth.test.js): Auth route tests.
 - [server/tests/documents.test.js](server/tests/documents.test.js): Document route tests.
 - [server/tests/users.test.js](server/tests/users.test.js): User route tests.
+- [server/tests/nerAccuracy.test.js](server/tests/nerAccuracy.test.js): NER accuracy evaluation tests.
+
+### NER (Named Entity Recognition) Accuracy Testing
+
+The `nerAccuracy.test.js` file evaluates entity extraction quality against sample financial documents with known ground truth.
+
+**Running the tests:**
+```bash
+# With Jest (requires NLP service running on port 8000)
+cd server
+npm test -- nerAccuracy.test.js
+
+# Standalone mode (detailed output)
+node server/tests/nerAccuracy.test.js --standalone
+```
+
+**Metrics measured:**
+- **Precision**: Of entities extracted, what percentage were correct?
+- **Recall**: Of known entities, what percentage were found?
+- **F1 Score**: Harmonic mean of precision and recall (overall accuracy)
+
+**Entity types evaluated:**
+| Type | Description | Example |
+|------|-------------|---------|
+| ORG | Organizations | "Apple Inc.", "FDIC" |
+| PERSON | People names | "Tim Cook", "Jamie Dimon" |
+| MONEY | Monetary values | "$394.3 billion", "£8.4 billion" |
+| DATE | Dates/periods | "January 26, 2023", "Q3 2023" |
+| GPE | Countries/cities | "California", "London" |
+| PERCENT | Percentages | "7.8%", "24.5%" |
+| CARDINAL | Numbers | "1.5 million", "30" |
+
+**Interpreting results:**
+- 🟢 **Good** (F1 ≥ 70%): Entity type is reliably extracted
+- 🟡 **Fair** (F1 ≥ 40%): Partial extraction, may need refinement
+- 🔴 **Needs Work** (F1 < 40%): Consider custom NER rules or training
 
 #### Server Contracts
 - [server/contracts/nlpResults.json](server/contracts/nlpResults.json): NLP results JSON contract.
