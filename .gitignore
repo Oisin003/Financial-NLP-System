@@ -2,3 +2,6 @@ node_modules/
 .env
 .DS_Store
 *.log
+# Local runtimes (Tika, JRE, Tesseract) - binaries too large for git
+runtimes/*
+!runtimes/README.md

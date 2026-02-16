@@ -1,22 +1,58 @@
 import { spawn } from 'child_process';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdtempSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Allow overriding paths via environment variables
-const jarPath = process.env.TIKA_JAR || 'E:\\tika-server-standard-3.2.3.jar';
+// Default paths use local runtimes folder
+const runtimesDir = path.join(__dirname, '..', 'runtimes');
+const jarPath = process.env.TIKA_JAR || path.join(runtimesDir, 'tika', 'tika-server-standard-3.2.3.jar');
+const javaBin = process.env.JAVA_BIN || path.join(runtimesDir, 'jre', 'bin', 'java.exe');
+const tesseractPath = process.env.TESSERACT_PATH || path.join(runtimesDir, 'tesseract');
+const tesseractDataPath = process.env.TESSERACT_DATAPATH || path.join(runtimesDir, 'tesseract', 'tessdata');
 const defaultTikaConfigPath = path.join(__dirname, '..', 'server', 'tika-config.xml');
-const tikaConfigPath = process.env.TIKA_CONFIG || (existsSync(defaultTikaConfigPath) ? defaultTikaConfigPath : undefined);
 const tikaHost = process.env.TIKA_HOST;
 const tikaPort = process.env.TIKA_PORT;
 
 if (!existsSync(jarPath)) {
   console.error(`Tika JAR not found at: ${jarPath}`);
-  console.error('Set TIKA_JAR env var or update the path in scripts/startTika.js');
+  console.error('Run the setup script or download runtimes manually. See runtimes/README.md');
   process.exit(1);
+}
+
+if (!existsSync(javaBin)) {
+  console.error(`Java not found at: ${javaBin}`);
+  console.error('Run the setup script or download JRE to runtimes/jre/');
+  process.exit(1);
+}
+
+// Generate config with absolute Tesseract paths
+let tikaConfigPath;
+if (existsSync(defaultTikaConfigPath)) {
+  let configContent = readFileSync(defaultTikaConfigPath, 'utf8');
+  
+  // Inject Tesseract paths if Tesseract is installed
+  if (existsSync(tesseractPath)) {
+    const tesseractParams = `
+        <param name="tesseractPath" type="string">${tesseractPath}</param>
+        <param name="tesseractDataPath" type="string">${tesseractDataPath}</param>`;
+    configContent = configContent.replace(
+      /(<parser class="org.apache.tika.parser.ocr.TesseractOCRParser">[\s\S]*?<params>)/,
+      `$1${tesseractParams}`
+    );
+    console.log(`Tesseract OCR enabled: ${tesseractPath}`);
+  } else {
+    console.warn(`Tesseract not found at: ${tesseractPath}`);
+    console.warn('OCR will be disabled. Install Tesseract to runtimes/tesseract/');
+  }
+  
+  // Write to temp file
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'tika-'));
+  tikaConfigPath = path.join(tempDir, 'tika-config.xml');
+  writeFileSync(tikaConfigPath, configContent);
 }
 
 const extraLibDir = path.join(__dirname, '..', 'server', 'lib');
@@ -51,7 +87,7 @@ if (tikaConfigPath) {
   console.warn('TIKA_CONFIG not set. Starting Tika with default config.');
 }
 
-const tika = spawn('java', args, {
+const tika = spawn(javaBin, args, {
   stdio: 'inherit'
 });
 

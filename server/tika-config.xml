@@ -14,8 +14,7 @@
     </parser>
     <parser class="org.apache.tika.parser.ocr.TesseractOCRParser">
       <params>
-        <param name="tesseractPath" type="string">C:\Program Files\Tesseract-OCR</param>
-        <param name="tesseractDataPath" type="string">C:\Program Files\Tesseract-OCR\tessdata</param>
+        <!-- Paths injected by startTika.js at runtime -->
         <param name="language" type="string">eng</param>
       </params>
     </parser>

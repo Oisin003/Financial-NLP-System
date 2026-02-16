@@ -172,10 +172,7 @@ const MIN_PRINTABLE_RATIO = 0.8;  // At least 80% must be readable characters
 
 // Basic audit thresholds for risk flagging
 const AUDIT_THRESHOLDS = {
-  overheadRatio: 0.35,
-  currentRatio: 1.5,
-  debtToEquity: 2.0,
-  grossMarginDropPct: 2
+  turnover: 350000  // £350k threshold for RAG classification
 };
 
 /**
@@ -301,8 +298,13 @@ function findLineValue(lines, keywordSets) {
     for (let j = 0; j < lines.length; j++) {
       const line = lines[j];
       if (lineHasKeywords(line, keywords)) {
-        const value = extractNumberFromLine(line);
+        let value = extractNumberFromLine(line);
         if (value !== null) {
+          // If line contains "loss" (e.g., "Loss before tax"), treat as negative
+          const lower = line.toLowerCase();
+          if (lower.includes('loss') && value > 0) {
+            value = -value;
+          }
           return { value, line };
         }
       }
@@ -360,103 +362,136 @@ export function analyzeAuditFlags(text) {
     return flags;
   }
 
-  const overhead = findLineValue(lines, [
-    ['overhead'],
-    ['operating', 'expenses'],
-    ['administrative', 'expenses'],
-    ['general', 'administrative'],
-    ['selling', 'general', 'administrative']
-  ]);
-  const revenue = findLineValue(lines, [
+  // ==========================================
+  // EXTRACT KEY FINANCIAL METRICS
+  // ==========================================
+
+  // 1. TURNOVER (Revenue/Sales)
+  const turnover = findLineValue(lines, [
+    ['turnover'],
     ['total', 'revenue'],
     ['revenue'],
     ['net', 'sales'],
-    ['sales']
+    ['sales'],
+    ['total', 'sales']
   ]);
 
-  if (overhead && revenue && revenue.value !== 0) {
-    const ratio = Math.abs(overhead.value) / Math.abs(revenue.value);
-    if (ratio > AUDIT_THRESHOLDS.overheadRatio) {
-      flags.push({
-        id: 'high-overhead',
-        severity: 'high',
-        title: 'High overhead ratio',
-        message: `Overhead ratio is ${(ratio * 100).toFixed(1)}% (threshold ${(AUDIT_THRESHOLDS.overheadRatio * 100).toFixed(0)}%).`,
-        evidence: { overhead: overhead.value, revenue: revenue.value, line: formatEvidenceLine(overhead.line) }
-      });
-    }
+  // 2. PROFIT BEFORE TAX
+  const profitBeforeTax = findLineValue(lines, [
+    ['profit', 'before', 'tax'],
+    ['profit', 'before', 'taxation'],
+    ['loss', 'before', 'tax'],
+    ['loss', 'before', 'taxation'],
+    ['profit/(loss)', 'before', 'tax'],
+    ['pre-tax', 'profit'],
+    ['pre-tax', 'income'],
+    ['pretax', 'profit'],
+    ['pretax', 'income'],
+    ['income', 'before', 'tax'],
+    ['earnings', 'before', 'tax']
+  ]);
+
+  // 3. NET ASSETS (negative = net liabilities)
+  const netAssets = findLineValue(lines, [
+    ['net', 'assets'],
+    ['total', 'net', 'assets'],
+    ['net', 'liabilities'],
+    ['total', 'equity'],
+    ['shareholders', 'funds'],
+    ['shareholder', 'funds'],
+    ['stockholders', 'equity'],
+    ['total', 'shareholders', 'equity'],
+    ['members', 'funds']
+  ]);
+
+  // ==========================================
+  // RAG CLASSIFICATION LOGIC
+  // ==========================================
+  // R (Red)   = turnover < 350k OR [net liabilities AND negative profit before tax]
+  // A (Amber) = negative profit before tax OR negative net assets (net liabilities)
+  // G (Green) = turnover > 350k AND positive profit before tax AND positive net assets
+
+  const turnoverValue = turnover ? turnover.value : null;
+  const profitValue = profitBeforeTax ? profitBeforeTax.value : null;
+  const netAssetsValue = netAssets ? netAssets.value : null;
+
+  const hasTurnover = turnoverValue !== null;
+  const hasProfit = profitValue !== null;
+  const hasNetAssets = netAssetsValue !== null;
+
+  const lowTurnover = hasTurnover && turnoverValue < AUDIT_THRESHOLDS.turnover;
+  const negativeProfitBeforeTax = hasProfit && profitValue < 0;
+  const netLiabilities = hasNetAssets && netAssetsValue < 0;
+
+  // Determine RAG status
+  let ragStatus = 'unknown';
+  let ragReason = '';
+
+  // Check for RED conditions
+  if (lowTurnover) {
+    ragStatus = 'red';
+    ragReason = `Turnover (£${turnoverValue.toLocaleString()}) is below £350,000 threshold`;
+  } else if (netLiabilities && negativeProfitBeforeTax) {
+    ragStatus = 'red';
+    ragReason = 'Net liabilities combined with negative profit before tax';
+  }
+  // Check for AMBER conditions (if not already red)
+  else if (negativeProfitBeforeTax) {
+    ragStatus = 'amber';
+    ragReason = `Negative profit before tax (£${profitValue.toLocaleString()})`;
+  } else if (netLiabilities) {
+    ragStatus = 'amber';
+    ragReason = `Net liabilities position (£${netAssetsValue.toLocaleString()})`;
+  }
+  // Check for GREEN conditions
+  else if (hasTurnover && hasProfit && hasNetAssets &&
+           turnoverValue >= AUDIT_THRESHOLDS.turnover &&
+           profitValue >= 0 &&
+           netAssetsValue >= 0) {
+    ragStatus = 'green';
+    ragReason = 'All financial indicators are positive';
   }
 
-  const operatingCashFlow = findLineValue(lines, [
-    ['net', 'cash', 'operating'],
-    ['operating', 'cash', 'flow'],
-    ['net', 'cash', 'provided', 'by', 'operating']
-  ]);
-  if (operatingCashFlow && operatingCashFlow.value < 0) {
+  // ==========================================
+  // BUILD RAG FLAG
+  // ==========================================
+
+  if (ragStatus !== 'unknown') {
     flags.push({
-      id: 'negative-operating-cashflow',
-      severity: 'high',
-      title: 'Negative operating cash flow',
-      message: `Operating cash flow is negative (${operatingCashFlow.value}).`,
-      evidence: { value: operatingCashFlow.value, line: formatEvidenceLine(operatingCashFlow.line) }
+      id: 'rag-status',
+      severity: ragStatus === 'red' ? 'high' : ragStatus === 'amber' ? 'medium' : 'low',
+      title: `RAG Status: ${ragStatus.toUpperCase()}`,
+      message: ragReason,
+      evidence: {
+        turnover: turnoverValue,
+        profitBeforeTax: profitValue,
+        netAssets: netAssetsValue,
+        ragStatus
+      }
     });
-  }
-
-  const grossMargins = extractGrossMarginPercents(lines);
-  if (grossMargins.length >= 2) {
-    const previous = grossMargins[grossMargins.length - 2];
-    const latest = grossMargins[grossMargins.length - 1];
-    if ((previous.value - latest.value) >= AUDIT_THRESHOLDS.grossMarginDropPct) {
-      flags.push({
-        id: 'gross-margin-down',
-        severity: 'medium',
-        title: 'Falling gross margin',
-        message: `Gross margin fell from ${previous.value}% to ${latest.value}%.`,
-        evidence: { previous: previous.value, latest: latest.value, line: formatEvidenceLine(latest.line) }
-      });
-    }
   } else {
-    const declineRegex = /gross margin.*(decrease|decline|down|lower|deteriorat)/i;
-    const declineLine = lines.find(function(line) {
-      return declineRegex.test(line);
-    });
-    if (declineLine) {
+    // Missing data - couldn't determine RAG status
+    const missingMetrics = [];
+    if (!hasTurnover) missingMetrics.push('turnover');
+    if (!hasProfit) missingMetrics.push('profit before tax');
+    if (!hasNetAssets) missingMetrics.push('net assets');
+
+    if (missingMetrics.length > 0) {
       flags.push({
-        id: 'gross-margin-down',
+        id: 'incomplete-data',
         severity: 'medium',
-        title: 'Falling gross margin',
-        message: 'Gross margin is described as declining.',
-        evidence: { line: formatEvidenceLine(declineLine) }
+        title: 'Incomplete Financial Data',
+        message: `Unable to determine RAG status. Missing: ${missingMetrics.join(', ')}.`,
+        evidence: {
+          missingMetrics,
+          foundMetrics: {
+            turnover: turnoverValue,
+            profitBeforeTax: profitValue,
+            netAssets: netAssetsValue
+          }
+        }
       });
     }
-  }
-
-  const currentRatio = findLineValue(lines, [
-    ['current', 'ratio']
-  ]);
-  if (currentRatio && currentRatio.value < AUDIT_THRESHOLDS.currentRatio) {
-    flags.push({
-      id: 'liquidity-risk',
-      severity: 'medium',
-      title: 'Liquidity risk (low current ratio)',
-      message: `Current ratio is ${currentRatio.value} (threshold ${AUDIT_THRESHOLDS.currentRatio}).`,
-      evidence: { value: currentRatio.value, line: formatEvidenceLine(currentRatio.line) }
-    });
-  }
-
-  const debtToEquity = findLineValue(lines, [
-    ['debt-to-equity'],
-    ['debt/equity'],
-    ['debt', 'to', 'equity']
-  ]);
-  if (debtToEquity && debtToEquity.value > AUDIT_THRESHOLDS.debtToEquity) {
-    flags.push({
-      id: 'leverage-risk',
-      severity: 'medium',
-      title: 'Leverage risk (high debt to equity)',
-      message: `Debt to equity is ${debtToEquity.value} (threshold ${AUDIT_THRESHOLDS.debtToEquity}).`,
-      evidence: { value: debtToEquity.value, line: formatEvidenceLine(debtToEquity.line) }
-    });
   }
 
   return flags;

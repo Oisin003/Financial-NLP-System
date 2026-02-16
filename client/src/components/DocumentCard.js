@@ -56,14 +56,40 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
             </small>
           </div>
 
-          {Array.isArray(doc.auditFlags) && doc.auditFlags.length > 0 && (
-            <div className="text-center mb-3">
-              <span className="badge bg-danger-subtle text-danger border border-danger">
-                <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                Audit flags: {doc.auditFlags.length}
-              </span>
-            </div>
-          )}
+          {/* RAG Status Badge */}
+          {Array.isArray(doc.auditFlags) && doc.auditFlags.length > 0 && (() => {
+            const ragFlag = doc.auditFlags.find(f => f.id === 'rag-status');
+            if (ragFlag && ragFlag.evidence && ragFlag.evidence.ragStatus) {
+              const status = ragFlag.evidence.ragStatus;
+              const badgeClasses = {
+                red: 'bg-danger text-white',
+                amber: 'bg-warning text-dark',
+                green: 'bg-success text-white'
+              };
+              const icons = {
+                red: 'bi-x-circle-fill',
+                amber: 'bi-exclamation-triangle-fill',
+                green: 'bi-check-circle-fill'
+              };
+              return (
+                <div className="text-center mb-3">
+                  <span className={`badge ${badgeClasses[status] || badgeClasses.amber}`}>
+                    <i className={`bi ${icons[status] || icons.amber} me-1`}></i>
+                    RAG: {status.toUpperCase()}
+                  </span>
+                </div>
+              );
+            }
+            // Fallback for old audit flags without RAG status
+            return (
+              <div className="text-center mb-3">
+                <span className="badge bg-warning text-dark">
+                  <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                  {doc.auditFlags.length} flag{doc.auditFlags.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Action buttons (full width) */}
           <div>
@@ -80,7 +106,10 @@ function DocumentCard({ doc, currentUser, onNLPClick, onDelete, deletingId }) {
             {/* NLP Analysis button */}
             <button
               className="btn btn-info btn-sm w-100 mb-2"
-              onClick={() => onNLPClick({ id: doc.id, name: doc.originalName })}
+              onClick={() => {
+                console.log('NLP button clicked for doc:', doc.id, doc.originalName);
+                onNLPClick({ id: doc.id, name: doc.originalName });
+              }}
               title="View text analysis and word frequency"
             >
               <i className="bi bi-graph-up me-1"></i>

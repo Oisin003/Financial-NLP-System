@@ -28,6 +28,11 @@ function Documents() {
   // Track which document's NLP analysis is being viewed
   const [selectedDocumentForNLP, setSelectedDocumentForNLP] = useState(null);
 
+  // Debug: log when selectedDocumentForNLP changes
+  React.useEffect(() => {
+    console.log('selectedDocumentForNLP changed:', selectedDocumentForNLP);
+  }, [selectedDocumentForNLP]);
+
   // Navigation function
   const navigate = useNavigate();
 

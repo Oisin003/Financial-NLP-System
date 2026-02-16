@@ -160,7 +160,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                         <div style={styles.auditPanelHeader}>
                             <h3 style={{ margin: 0 }}>
                                 <i className="bi bi-flag-fill me-2"></i>
-                                Audit Flags for {documentLabel}
+                                RAG Audit Status for {documentLabel}
                             </h3>
                             <button
                                 type="button"
@@ -170,23 +170,98 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                                 Close
                             </button>
                         </div>
-                        {auditFlags.length > 0 ? (
-                            <div style={styles.auditList}>
-                                {auditFlags.map((flag, index) => (
-                                    <div key={flag.id || index} style={styles.auditItem}>
-                                        <div style={styles.auditMeta}>{documentLabel}</div>
-                                        <div style={styles.auditTitle}>{flag.title || 'Audit flag'}</div>
-                                        <p style={styles.auditMessage}>{flag.message}</p>
-                                        {flag.evidence && flag.evidence.line && (
-                                            <div style={styles.auditEvidence}>
-                                                Evidence: {flag.evidence.line}
-                                            </div>
-                                        )}
+                        
+                        {/* RAG Status Banner */}
+                        {(() => {
+                            const ragFlag = auditFlags.find(f => f.id === 'rag-status');
+                            if (ragFlag && ragFlag.evidence && ragFlag.evidence.ragStatus) {
+                                const status = ragFlag.evidence.ragStatus;
+                                const ragColors = {
+                                    red: { bg: '#dc3545', text: 'white', icon: 'bi-x-circle-fill' },
+                                    amber: { bg: '#ffc107', text: 'black', icon: 'bi-exclamation-triangle-fill' },
+                                    green: { bg: '#28a745', text: 'white', icon: 'bi-check-circle-fill' }
+                                };
+                                const color = ragColors[status] || ragColors.amber;
+                                return (
+                                    <div style={{
+                                        background: color.bg,
+                                        color: color.text,
+                                        padding: '20px',
+                                        borderRadius: '8px',
+                                        marginBottom: '20px',
+                                        textAlign: 'center'
+                                    }}>
+                                        <i className={`bi ${color.icon}`} style={{ fontSize: '2rem', marginBottom: '10px', display: 'block' }}></i>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '5px' }}>
+                                            RAG Status: {status.toUpperCase()}
+                                        </div>
+                                        <div style={{ fontSize: '0.9rem' }}>{ragFlag.message}</div>
+                                        <div style={{ marginTop: '15px', fontSize: '0.85rem', opacity: 0.9 }}>
+                                            {ragFlag.evidence.turnover !== null && (
+                                                <span style={{ marginRight: '15px' }}>
+                                                    Turnover: £{ragFlag.evidence.turnover?.toLocaleString() || 'N/A'}
+                                                </span>
+                                            )}
+                                            {ragFlag.evidence.profitBeforeTax !== null && (
+                                                <span style={{ marginRight: '15px' }}>
+                                                    PBT: £{ragFlag.evidence.profitBeforeTax?.toLocaleString() || 'N/A'}
+                                                </span>
+                                            )}
+                                            {ragFlag.evidence.netAssets !== null && (
+                                                <span>
+                                                    Net Assets: £{ragFlag.evidence.netAssets?.toLocaleString() || 'N/A'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                ))}
+                                );
+                            }
+                            return null;
+                        })()}
+
+                        {/* Other Audit Flags (excluding RAG status) */}
+                        {auditFlags.filter(f => f.id !== 'rag-status').length > 0 ? (
+                            <div style={styles.auditList}>
+                                {auditFlags.filter(f => f.id !== 'rag-status').map((flag, index) => {
+                                    const severityColors = {
+                                        high: { border: '#dc3545', bg: '#fff5f5' },
+                                        medium: { border: '#ffc107', bg: '#fffbeb' },
+                                        low: { border: '#28a745', bg: '#f0fff4' }
+                                    };
+                                    const colors = severityColors[flag.severity] || severityColors.medium;
+                                    return (
+                                        <div key={flag.id || index} style={{
+                                            ...styles.auditItem,
+                                            borderLeft: `4px solid ${colors.border}`,
+                                            background: colors.bg
+                                        }}>
+                                            <div style={styles.auditMeta}>
+                                                <span style={{
+                                                    background: colors.border,
+                                                    color: flag.severity === 'medium' ? 'black' : 'white',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.75rem',
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {flag.severity}
+                                                </span>
+                                            </div>
+                                            <div style={styles.auditTitle}>{flag.title || 'Audit flag'}</div>
+                                            <p style={styles.auditMessage}>{flag.message}</p>
+                                            {flag.evidence && flag.evidence.line && (
+                                                <div style={styles.auditEvidence}>
+                                                    Evidence: {flag.evidence.line}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
-                            <p style={styles.description}>No audit flags detected with current rules.</p>
+                            !auditFlags.find(f => f.id === 'rag-status') && (
+                                <p style={styles.description}>No audit flags detected with current rules.</p>
+                            )
                         )}
                     </div>
                 )}

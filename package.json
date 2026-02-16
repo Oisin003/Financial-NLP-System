@@ -2,13 +2,15 @@
   "name": "achilles-ltd",
   "version": "1.0.0",
   "description": "Achilles Ltd - Financial NLP System",
+  "type": "module",
   "main": "server/server.js",
   "scripts": {
-    "start": "concurrently \"npm run tika\" \"npm run server\" \"npm run client\" \"npm run nlp\"",
+    "start": "node scripts/checkSetup.js && concurrently \"npm run tika\" \"npm run server\" \"npm run client\" \"npm run nlp\"",
     "server": "cd server && npm run start",
     "client": "cd client && npm start",
     "tika": "node scripts/startTika.js",
-    "nlp": "cd nlp_service && venv\\Scripts\\python.exe -m uvicorn main:app --reload"
+    "nlp": "cd nlp_service && venv\\Scripts\\python.exe -m uvicorn main:app --reload",
+    "setup": "node scripts/setup.js"
   },
   "license": "ISC",
   "dependencies": {
@@ -16,6 +18,7 @@
     "fastapi": "^0.0.8",
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
-    "uvicorn": "^0.0.1-security"
+    "uvicorn": "^0.0.1-security",
+    "wait-on": "^7.0.1"
   }
 }
