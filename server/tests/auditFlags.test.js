@@ -7,6 +7,8 @@
  * R (Red)   = turnover < 350k OR [net liabilities AND negative profit before tax]
  * A (Amber) = negative profit before tax OR negative net assets (net liabilities)
  * G (Green) = turnover > 350k AND positive profit before tax AND positive net assets
+ * 
+ * Provided by Robbie
  */
 
 import { analyzeAuditFlags } from '../services/nlpProcessor.js';
