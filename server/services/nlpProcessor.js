@@ -254,7 +254,7 @@ function parseNumericValue(value) {
     return null;
   }
 
-  let cleaned = value.replace(/[$,]/g, '');
+  let cleaned = value.replace(/[£$,]/g, '');
   const hasParens = cleaned.includes('(') && cleaned.includes(')');
   cleaned = cleaned.replace(/[()]/g, '');
 
@@ -271,11 +271,41 @@ function parseNumericValue(value) {
 }
 
 function extractNumberFromLine(line) {
-  const matches = line.match(/[-(]?\$?\d[\d,]*\.?\d*\)?/g);
+  const matches = line.match(/\(?-?(?:£|\$)?\d[\d,]*(?:\.\d+)?\)?/g);
   if (!matches || matches.length === 0) {
     return null;
   }
-  return parseNumericValue(matches[matches.length - 1]);
+
+  const candidates = [];
+  for (let i = 0; i < matches.length; i++) {
+    const raw = matches[i];
+    const value = parseNumericValue(raw);
+    if (value === null) {
+      continue;
+    }
+
+    const hasCurrency = /[£$]/.test(raw);
+    const hasThousandsComma = raw.includes(',');
+    const digitsOnly = raw.replace(/[^\d]/g, '');
+
+    if (digitsOnly.length < 4 && !hasCurrency && !hasThousandsComma) {
+      continue;
+    }
+
+    const absValue = Math.abs(value);
+    const looksLikeYear = !hasCurrency && !hasThousandsComma && absValue >= 1900 && absValue <= 2100;
+    if (looksLikeYear) {
+      continue;
+    }
+
+    candidates.push(value);
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates[0];
 }
 
 function normalizeTextLines(text) {
@@ -355,6 +385,32 @@ function formatEvidenceLine(line) {
   return `${collapsed.slice(0, 237)}...`;
 }
 
+function formatCurrency(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 'N/A';
+  }
+
+  const absolute = Math.abs(value).toLocaleString();
+  if (value < 0) {
+    return `-£${absolute}`;
+  }
+
+  return `£${absolute}`;
+}
+
+function findLineContainingAnyPhrase(lines, phrases) {
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    for (let j = 0; j < phrases.length; j++) {
+      if (lower.includes(phrases[j])) {
+        return lines[i];
+      }
+    }
+  }
+
+  return null;
+}
+
 export function analyzeAuditFlags(text) {
   const flags = [];
   const lines = normalizeTextLines(text);
@@ -404,6 +460,14 @@ export function analyzeAuditFlags(text) {
     ['members', 'funds']
   ]);
 
+  // 4. TOTAL BORROWINGS / DEBT (for debt burden checks)
+  const borrowings = findLineValue(lines, [
+    ['loans', 'and', 'borrowings'],
+    ['total', 'borrowings'],
+    ['bank', 'borrowings'],
+    ['borrowings']
+  ]);
+
   // ==========================================
   // RAG CLASSIFICATION LOGIC
   // ==========================================
@@ -418,6 +482,7 @@ export function analyzeAuditFlags(text) {
   const hasTurnover = turnoverValue !== null;
   const hasProfit = profitValue !== null;
   const hasNetAssets = netAssetsValue !== null;
+  const borrowingsValue = borrowings ? borrowings.value : null;
 
   const lowTurnover = hasTurnover && turnoverValue < AUDIT_THRESHOLDS.turnover;
   const negativeProfitBeforeTax = hasProfit && profitValue < 0;
@@ -430,7 +495,7 @@ export function analyzeAuditFlags(text) {
   // Check for RED conditions
   if (lowTurnover) {
     ragStatus = 'red';
-    ragReason = `Turnover (£${turnoverValue.toLocaleString()}) is below £350,000 threshold`;
+    ragReason = `Turnover (${formatCurrency(turnoverValue)}) is below £350,000 threshold`;
   } else if (netLiabilities && negativeProfitBeforeTax) {
     ragStatus = 'red';
     ragReason = 'Net liabilities combined with negative profit before tax';
@@ -438,10 +503,10 @@ export function analyzeAuditFlags(text) {
   // Check for AMBER conditions (if not already red)
   else if (negativeProfitBeforeTax) {
     ragStatus = 'amber';
-    ragReason = `Negative profit before tax (£${profitValue.toLocaleString()})`;
+    ragReason = `Negative profit before tax (${formatCurrency(profitValue)})`;
   } else if (netLiabilities) {
     ragStatus = 'amber';
-    ragReason = `Net liabilities position (£${netAssetsValue.toLocaleString()})`;
+    ragReason = `Net liabilities position (${formatCurrency(netAssetsValue)})`;
   }
   // Check for GREEN conditions
   else if (hasTurnover && hasProfit && hasNetAssets &&
@@ -466,6 +531,9 @@ export function analyzeAuditFlags(text) {
         turnover: turnoverValue,
         profitBeforeTax: profitValue,
         netAssets: netAssetsValue,
+        turnoverLine: formatEvidenceLine(turnover?.line),
+        profitBeforeTaxLine: formatEvidenceLine(profitBeforeTax?.line),
+        netAssetsLine: formatEvidenceLine(netAssets?.line),
         ragStatus
       }
     });
@@ -489,6 +557,136 @@ export function analyzeAuditFlags(text) {
             profitBeforeTax: profitValue,
             netAssets: netAssetsValue
           }
+        }
+      });
+    }
+  }
+
+  // ==========================================
+  // EXTRA AUDIT RULE 1: DEBT BURDEN
+  // ==========================================
+  // Red   = borrowings / turnover >= 1.0
+  // Amber = borrowings / turnover >= 0.7
+  if (borrowingsValue !== null && hasTurnover && Math.abs(turnoverValue) > 0) {
+    const debtRatio = Math.abs(borrowingsValue) / Math.abs(turnoverValue);
+    const debtPct = (debtRatio * 100).toFixed(1);
+
+    if (debtRatio >= 1.0) {
+      flags.push({
+        id: 'debt-burden',
+        severity: 'high',
+        title: 'Debt Burden Risk (Red)',
+        message: `Borrowings (${formatCurrency(borrowingsValue)}) exceed turnover (${formatCurrency(turnoverValue)}), ratio ${debtPct}%.`,
+        evidence: {
+          borrowings: borrowingsValue,
+          turnover: turnoverValue,
+          debtToTurnoverRatio: Number(debtRatio.toFixed(4)),
+          borrowingsLine: formatEvidenceLine(borrowings?.line),
+          turnoverLine: formatEvidenceLine(turnover?.line)
+        }
+      });
+    } else if (debtRatio >= 0.7) {
+      flags.push({
+        id: 'debt-burden',
+        severity: 'medium',
+        title: 'Debt Burden Watch (Amber)',
+        message: `Borrowings are high relative to turnover (ratio ${debtPct}%).`,
+        evidence: {
+          borrowings: borrowingsValue,
+          turnover: turnoverValue,
+          debtToTurnoverRatio: Number(debtRatio.toFixed(4)),
+          borrowingsLine: formatEvidenceLine(borrowings?.line),
+          turnoverLine: formatEvidenceLine(turnover?.line)
+        }
+      });
+    }
+  }
+
+  // ==========================================
+  // EXTRA AUDIT RULE 2: GROSS MARGIN DETERIORATION
+  // ==========================================
+  // Red   = decline >= 10 percentage points
+  // Amber = decline >= 5 percentage points
+  const grossMarginValues = extractGrossMarginPercents(lines);
+  if (grossMarginValues.length >= 2) {
+    const latestMargin = grossMarginValues[0].value;
+    const priorMargin = grossMarginValues[1].value;
+    const change = latestMargin - priorMargin;
+
+    if (change <= -10) {
+      flags.push({
+        id: 'gross-margin-deterioration',
+        severity: 'high',
+        title: 'Gross Margin Deterioration (Red)',
+        message: `Gross margin fell from ${priorMargin.toFixed(2)}% to ${latestMargin.toFixed(2)}% (${change.toFixed(2)}pp).`,
+        evidence: {
+          latestMargin,
+          priorMargin,
+          marginChangePctPoints: Number(change.toFixed(2)),
+          line: formatEvidenceLine(grossMarginValues[0].line)
+        }
+      });
+    } else if (change <= -5) {
+      flags.push({
+        id: 'gross-margin-deterioration',
+        severity: 'medium',
+        title: 'Gross Margin Deterioration (Amber)',
+        message: `Gross margin declined by ${Math.abs(change).toFixed(2)} percentage points year-on-year.`,
+        evidence: {
+          latestMargin,
+          priorMargin,
+          marginChangePctPoints: Number(change.toFixed(2)),
+          line: formatEvidenceLine(grossMarginValues[0].line)
+        }
+      });
+    }
+  }
+
+  // ==========================================
+  // EXTRA AUDIT RULE 3: GOING-CONCERN WORDING RISK
+  // ==========================================
+  const textLower = lines.join(' ').toLowerCase();
+  const hasGoingConcern = textLower.includes('going concern');
+
+  if (hasGoingConcern) {
+    const severePhrases = [
+      'material uncertainty',
+      'significant doubt',
+      'may cast significant doubt',
+      'unable to continue as a going concern'
+    ];
+
+    const moderatePhrases = [
+      'repayable on demand',
+      'dependent upon',
+      'dependent on',
+      'continuing support',
+      'overdraft facility'
+    ];
+
+    const matchedSevere = severePhrases.find(function(phrase) { return textLower.includes(phrase); });
+    const matchedModerate = moderatePhrases.find(function(phrase) { return textLower.includes(phrase); });
+
+    if (matchedSevere) {
+      flags.push({
+        id: 'going-concern-risk',
+        severity: 'high',
+        title: 'Going Concern Risk (Red)',
+        message: `Going-concern disclosure includes high-risk wording: "${matchedSevere}".`,
+        evidence: {
+          matchedPhrase: matchedSevere,
+          line: formatEvidenceLine(findLineContainingAnyPhrase(lines, ['going concern', matchedSevere]))
+        }
+      });
+    } else if (matchedModerate) {
+      flags.push({
+        id: 'going-concern-risk',
+        severity: 'medium',
+        title: 'Going Concern Watch (Amber)',
+        message: `Going-concern note references liquidity dependency: "${matchedModerate}".`,
+        evidence: {
+          matchedPhrase: matchedModerate,
+          line: formatEvidenceLine(findLineContainingAnyPhrase(lines, ['going concern', matchedModerate]))
         }
       });
     }
@@ -585,8 +783,12 @@ async function extractTextWithTika(filePath, options) {
 
     // CLEAN UP THE TEXT:
     // Sometimes Tika returns text with XML/HTML tags, so remove them
-    text = text.replace(/<[^>]+>/g, ' '); // Remove any tags
-    text = text.replace(/\s+/g, ' ').trim(); // Replace multiple spaces with single space
+    text = text.replace(/<[^>]+>/g, '\n'); // Remove tags while preserving separation
+    const normalizedLines = text
+      .split(/\r?\n/)
+      .map(function(line) { return line.replace(/[ \t]+/g, ' ').trim(); })
+      .filter(Boolean);
+    text = normalizedLines.join('\n');
 
     return text;
   } catch (error) {

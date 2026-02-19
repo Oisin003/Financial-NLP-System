@@ -295,6 +295,7 @@ async function processDocumentNLP(document) {
     // Save NLP results to database, including financial figures and timing
     await document.update({
       extractedText: nlpResults.rawText,
+      nlpSummary: microserviceResults.summary || null,
       processedTokens: nlpResults.processedTokens,
       wordFrequency: nlpResults.wordFrequency,
       topWords: nlpResults.topWords,
@@ -360,6 +361,7 @@ router.get('/:id/nlp', auth, async (req, res) => {
       originalName: document.originalName,
       nlpProcessed: true,
       extractedText: document.extractedText,
+      summary: document.nlpSummary || null,
       processedTokens: document.processedTokens,
       wordFrequency: document.wordFrequency,
       topWords: document.topWords,

@@ -158,4 +158,105 @@ describe('RAG Audit Flag Detection', () => {
       expect(ragFlag.evidence.ragStatus).toBe('green');
     });
   });
+
+  describe('Debt Burden Rule', () => {
+    test('Flags AMBER when borrowings are high relative to turnover', () => {
+      const text = [
+        'Turnover 500000',
+        'Loans and borrowings 400000',
+        'Profit before tax 25000',
+        'Net assets 150000'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const debtFlag = flags.find(f => f.id === 'debt-burden');
+
+      expect(debtFlag).toBeDefined();
+      expect(debtFlag.severity).toBe('medium');
+      expect(debtFlag.evidence.debtToTurnoverRatio).toBeGreaterThanOrEqual(0.7);
+    });
+
+    test('Flags RED when borrowings exceed turnover', () => {
+      const text = [
+        'Turnover 600000',
+        'Loans and borrowings 750000',
+        'Profit before tax 30000',
+        'Net assets 120000'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const debtFlag = flags.find(f => f.id === 'debt-burden');
+
+      expect(debtFlag).toBeDefined();
+      expect(debtFlag.severity).toBe('high');
+      expect(debtFlag.evidence.debtToTurnoverRatio).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Gross Margin Deterioration Rule', () => {
+    test('Flags AMBER when gross margin drops by >= 5 percentage points', () => {
+      const text = [
+        'Turnover 500000',
+        'Profit before tax 50000',
+        'Net assets 100000',
+        'Gross margin (%) 52.0% 58.0%'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const marginFlag = flags.find(f => f.id === 'gross-margin-deterioration');
+
+      expect(marginFlag).toBeDefined();
+      expect(marginFlag.severity).toBe('medium');
+      expect(marginFlag.evidence.marginChangePctPoints).toBeLessThanOrEqual(-5);
+    });
+
+    test('Flags RED when gross margin drops by >= 10 percentage points', () => {
+      const text = [
+        'Turnover 500000',
+        'Profit before tax 50000',
+        'Net assets 100000',
+        'Gross margin (%) 45.0% 60.0%'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const marginFlag = flags.find(f => f.id === 'gross-margin-deterioration');
+
+      expect(marginFlag).toBeDefined();
+      expect(marginFlag.severity).toBe('high');
+      expect(marginFlag.evidence.marginChangePctPoints).toBeLessThanOrEqual(-10);
+    });
+  });
+
+  describe('Going Concern Wording Rule', () => {
+    test('Flags AMBER for going concern with dependency wording', () => {
+      const text = [
+        'Turnover 500000',
+        'Profit before tax 20000',
+        'Net assets 100000',
+        'The financial statements have been prepared on a going concern basis.',
+        'The overdraft facility is repayable on demand and dependent upon continuing support.'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const gcFlag = flags.find(f => f.id === 'going-concern-risk');
+
+      expect(gcFlag).toBeDefined();
+      expect(gcFlag.severity).toBe('medium');
+    });
+
+    test('Flags RED for severe going concern warning wording', () => {
+      const text = [
+        'Turnover 500000',
+        'Profit before tax 20000',
+        'Net assets 100000',
+        'There is a material uncertainty which may cast significant doubt on going concern.'
+      ].join('\n');
+
+      const flags = analyzeAuditFlags(text);
+      const gcFlag = flags.find(f => f.id === 'going-concern-risk');
+
+      expect(gcFlag).toBeDefined();
+      expect(gcFlag.severity).toBe('high');
+    });
+  });
 });

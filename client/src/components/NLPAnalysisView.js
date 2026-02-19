@@ -1,26 +1,22 @@
-// Import React library - this is needed for all React components
-import React, { useState } from 'react';
-// Import the styling object that contains all CSS styles for this component
+import React from 'react';
 import { styles } from './NLPAnalysis.styles';
+import NLPAnalysisAuditPanel from './NLPAnalysisAuditPanel';
+import NLPAnalysisContentSections from './NLPAnalysisContentSections';
+import { buildStats, getFinancialFigures, getSummaryText } from './NLPAnalysis.utils';
 
 /**
- * NLPAnalysisView Component
+ * Container view for NLP analysis output.
+ * This file coordinates high-level state views and delegates detailed sections.
  */
 function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData }) {
-    // Toggle for showing the audit flags card
-    const [showAuditFlags, setShowAuditFlags] = useState(false);
-
-    // LOADING STATE:
-    // While data is loading, show a spinner and nothing else.
+    // Loading state: display header and spinner while data is requested.
     if (loading) {
         return (
             <div style={styles.container}>
-                {/* Header section with document name and close button */}
                 <div style={styles.header}>
                     <h2>NLP Analysis: {documentName}</h2>
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
-                {/* Loading animation area */}
                 <div style={styles.loading}>
                     <div style={styles.spinner}></div>
                     <p>Loading...</p>
@@ -29,8 +25,7 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
         );
     }
 
-    // NOT PROCESSED STATE:
-    // If the document is still processing or failed, show a message.
+    // Not-processed state: covers in-progress and failed processing outputs.
     const isProcessed = nlpData && nlpData.nlpProcessed;
 
     if (!isProcessed) {
@@ -42,17 +37,12 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
 
-                {/* Show an error if the server provided one */}
                 {(nlpData && nlpData.nlpError) ? (
-                    // Show error message with a retry button
                     <div style={styles.errorContainer}>
-                        {/* Bootstrap Icon for warning triangle */}
                         <i className="bi bi-exclamation-triangle-fill" style={styles.errorIcon}></i>
                         <div>
                             <h3 style={styles.errorTitle}>Processing Failed</h3>
-                            {/* Display the actual error message from the server */}
                             <p style={styles.errorMessage}>{nlpData.nlpError}</p>
-                            {/* Retry button - calls onReprocess function when clicked */}
                             <button onClick={onReprocess} style={styles.retryBtn}>
                                 <i className="bi bi-arrow-clockwise me-2"></i>
                                 Try Again
@@ -60,7 +50,6 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                         </div>
                     </div>
                 ) : (
-                    // No error yet: still processing
                     <div style={styles.loading}>
                         <div style={styles.spinner}></div>
                         <h3>Processing...</h3>
@@ -70,23 +59,13 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
             </div>
         );
     }
-
-    // CALCULATE STATISTICS:
-    // Build a simple stats object, with safe defaults if data is missing.
-    const stats = {
-        // Total number of characters in the extracted text
-        // Use 0 as default if extractedText doesn't exist
-        textLength: (nlpData.extractedText && nlpData.extractedText.length) || 0,
-        // Total number of words (tokens) after processing
-        totalWords: (nlpData.processedTokens && nlpData.processedTokens.length) || 0,
-        // Number of unique/distinct words (count the keys in wordFrequency object)
-        uniqueWords: Object.keys(nlpData.wordFrequency || {}).length
-    };
-
-    // Audit flags are optional; default to an empty list if missing.
+    // Derived values are computed once and passed to child components.
+    // This keeps presentation components focused on rendering instead of data shaping.
+    const stats = buildStats(nlpData);
     const auditFlags = Array.isArray(nlpData.auditFlags) ? nlpData.auditFlags : [];
-    // Add a friendly label that includes the document ID when available.
     const documentLabel = nlpData && nlpData.documentId ? `${documentName} (#${nlpData.documentId})` : documentName;
+    const summaryText = getSummaryText(nlpData);
+    const financialFigures = getFinancialFigures(nlpData);
 
     // MAIN RENDER:
     // This is what displays when data is successfully loaded and processed
@@ -106,393 +85,18 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
                 </div>
             </div>
 
-            {/* ==================== CONTENT SECTION ==================== */}
-            {/* Everything below is the analysis output */}
             <div style={styles.content}>
-                {/* ==================== STATISTICS SECTION ==================== */}
-                {/* Quick overview: characters, words, and unique words */}
-                <div style={styles.section}>
-                    <h3>
-                        <i className="bi bi-graph-up me-2"></i>
-                        Statistics
-                    </h3>
-                    {/* Grid layout displays three stat cards side by side */}
-                    <div style={styles.statsGrid}>
-                        {/* Card 1: Character count */}
-                        <div style={styles.statCard}>
-                            {/* toLocaleString() adds commas for readability (e.g., 1,234) */}
-                            <div style={styles.statValue}>{stats.textLength.toLocaleString()}</div>
-                            <div style={styles.statLabel}>Characters</div>
-                        </div>
-                        {/* Card 2: Total words */}
-                        <div style={styles.statCard}>
-                            <div style={styles.statValue}>{stats.totalWords.toLocaleString()}</div>
-                            <div style={styles.statLabel}>Words</div>
-                        </div>
-                        {/* Card 3: Unique words */}
-                        <div style={styles.statCard}>
-                            <div style={styles.statValue}>{stats.uniqueWords.toLocaleString()}</div>
-                            <div style={styles.statLabel}>Unique Words</div>
-                        </div>
-                    </div>
-                </div>
+                <NLPAnalysisContentSections
+                    nlpData={nlpData}
+                    stats={stats}
+                    summaryText={summaryText}
+                    financialFigures={financialFigures}
+                />
 
-                {/* ==================== AUDIT FLAGS BUTTON ==================== */}
-                <div style={styles.section}>
-                    <h3>
-                        <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                        Audit Flags
-                    </h3>
-                    <button
-                        type="button"
-                        style={styles.auditToggleBtn}
-                        onClick={() => setShowAuditFlags(!showAuditFlags)}
-                    >
-                        {showAuditFlags ? 'Hide audit flags' : 'Show audit flags'}
-                    </button>
-                    {!showAuditFlags && (
-                        <p style={styles.description}></p>
-                    )}
-                </div>
-
-                {showAuditFlags && (
-                    <div style={styles.section}>
-                        <div style={styles.auditPanelHeader}>
-                            <h3 style={{ margin: 0 }}>
-                                <i className="bi bi-flag-fill me-2"></i>
-                                RAG Audit Status for {documentLabel}
-                            </h3>
-                            <button
-                                type="button"
-                                style={styles.auditCloseBtn}
-                                onClick={() => setShowAuditFlags(false)}
-                            >
-                                Close
-                            </button>
-                        </div>
-                        
-                        {/* RAG Status Banner */}
-                        {(() => {
-                            const ragFlag = auditFlags.find(f => f.id === 'rag-status');
-                            if (ragFlag && ragFlag.evidence && ragFlag.evidence.ragStatus) {
-                                const status = ragFlag.evidence.ragStatus;
-                                const ragColors = {
-                                    red: { bg: '#dc3545', text: 'white', icon: 'bi-x-circle-fill' },
-                                    amber: { bg: '#ffc107', text: 'black', icon: 'bi-exclamation-triangle-fill' },
-                                    green: { bg: '#28a745', text: 'white', icon: 'bi-check-circle-fill' }
-                                };
-                                const color = ragColors[status] || ragColors.amber;
-                                return (
-                                    <div style={{
-                                        background: color.bg,
-                                        color: color.text,
-                                        padding: '20px',
-                                        borderRadius: '8px',
-                                        marginBottom: '20px',
-                                        textAlign: 'center'
-                                    }}>
-                                        <i className={`bi ${color.icon}`} style={{ fontSize: '2rem', marginBottom: '10px', display: 'block' }}></i>
-                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '5px' }}>
-                                            RAG Status: {status.toUpperCase()}
-                                        </div>
-                                        <div style={{ fontSize: '0.9rem' }}>{ragFlag.message}</div>
-                                        <div style={{ marginTop: '15px', fontSize: '0.85rem', opacity: 0.9 }}>
-                                            {ragFlag.evidence.turnover !== null && (
-                                                <span style={{ marginRight: '15px' }}>
-                                                    Turnover: £{ragFlag.evidence.turnover?.toLocaleString() || 'N/A'}
-                                                </span>
-                                            )}
-                                            {ragFlag.evidence.profitBeforeTax !== null && (
-                                                <span style={{ marginRight: '15px' }}>
-                                                    PBT: £{ragFlag.evidence.profitBeforeTax?.toLocaleString() || 'N/A'}
-                                                </span>
-                                            )}
-                                            {ragFlag.evidence.netAssets !== null && (
-                                                <span>
-                                                    Net Assets: £{ragFlag.evidence.netAssets?.toLocaleString() || 'N/A'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            }
-                            return null;
-                        })()}
-
-                        {/* Other Audit Flags (excluding RAG status) */}
-                        {auditFlags.filter(f => f.id !== 'rag-status').length > 0 ? (
-                            <div style={styles.auditList}>
-                                {auditFlags.filter(f => f.id !== 'rag-status').map((flag, index) => {
-                                    const severityColors = {
-                                        high: { border: '#dc3545', bg: '#fff5f5' },
-                                        medium: { border: '#ffc107', bg: '#fffbeb' },
-                                        low: { border: '#28a745', bg: '#f0fff4' }
-                                    };
-                                    const colors = severityColors[flag.severity] || severityColors.medium;
-                                    return (
-                                        <div key={flag.id || index} style={{
-                                            ...styles.auditItem,
-                                            borderLeft: `4px solid ${colors.border}`,
-                                            background: colors.bg
-                                        }}>
-                                            <div style={styles.auditMeta}>
-                                                <span style={{
-                                                    background: colors.border,
-                                                    color: flag.severity === 'medium' ? 'black' : 'white',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.75rem',
-                                                    textTransform: 'uppercase'
-                                                }}>
-                                                    {flag.severity}
-                                                </span>
-                                            </div>
-                                            <div style={styles.auditTitle}>{flag.title || 'Audit flag'}</div>
-                                            <p style={styles.auditMessage}>{flag.message}</p>
-                                            {flag.evidence && flag.evidence.line && (
-                                                <div style={styles.auditEvidence}>
-                                                    Evidence: {flag.evidence.line}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            !auditFlags.find(f => f.id === 'rag-status') && (
-                                <p style={styles.description}>No audit flags detected with current rules.</p>
-                            )
-                        )}
-                    </div>
-                )}
-
-                {/* ==================== PROCESSING TIME SECTION ==================== */}
-                {/* Only show this section if timing data exists */}
-                {nlpData.timing && nlpData.timing.duration && (
-                    <div style={styles.section}>
-                        <h3>
-                            <i className="bi bi-clock-history me-2"></i>
-                            Processing Time
-                        </h3>
-                        <div style={styles.timingInfo}>
-                            {/* Show how long processing took */}
-                            <div style={styles.timingItem}>
-                                <span style={styles.timingLabel}>Duration:</span>
-                                {/* toFixed(3) shows 3 decimal places (e.g., 0.653s) */}
-                                <span style={styles.timingValue}>{nlpData.timing.duration.toFixed(3)}s</span>
-                            </div>
-                            {/* Show when processing started */}
-                            <div style={styles.timingItem}>
-                                <span style={styles.timingLabel}>Started:</span>
-                                <span style={styles.timingValue}>
-                                    {/* Convert timestamp to Irish date/time format */}
-                                    {new Date(nlpData.timing.startTime).toLocaleString('en-IE', { dateStyle: 'short', timeStyle: 'medium' })}
-                                </span>
-                            </div>
-                            {/* Show when processing ended */}
-                            <div style={styles.timingItem}>
-                                <span style={styles.timingLabel}>End Time:</span>
-                                <span style={styles.timingValue}>
-                                    {new Date(nlpData.timing.endTime).toLocaleString('en-IE', { dateStyle: 'short', timeStyle: 'medium' })}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ==================== FINANCIAL FIGURES SECTION ==================== */}
-                {/* Only show if figures from the NLP service are available */}
-                {Array.isArray(nlpData.financial_figures) && nlpData.financial_figures.length > 0 && (
-                    <div style={styles.section}>
-                        <h3>
-                            <i className="bi bi-currency-dollar me-2"></i>
-                            Financial Figures
-                        </h3>
-                        <div style={styles.financialFiguresList}>
-                            {/* Loop through each financial figure and display it */}
-                            {nlpData.financial_figures.map((fig, idx) => (
-                                // Each item needs a unique "key" prop for React to track it
-                                <div key={idx} style={styles.financialFigureItem}>
-                                    {/* Display the actual financial text (e.g., "$1,234.56") */}
-                                    <span style={styles.financialFigureText}>{fig.text}</span>
-                                    {/* Show where in the document this figure was found */}
-                                    <span style={styles.financialFigureMeta}>
-                                        (chars {fig.start_char}–{fig.end_char})
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* ==================== NAMED ENTITIES SECTION ==================== */}
-                {/* Shows extracted entities grouped by type (ORG, PERSON, GPE, DATE, etc.) */}
-                {Array.isArray(nlpData.entities) && nlpData.entities.length > 0 && (
-                    <div style={styles.section}>
-                        <h3>
-                            <i className="bi bi-tags-fill me-2"></i>
-                            Named Entities
-                        </h3>
-                        <p style={styles.description}>
-                            Organizations, people, locations, dates, and other entities extracted from the document
-                        </p>
-                        <div style={styles.entitiesContainer}>
-                            {/* Group entities by their label type */}
-                            {(() => {
-                                // Create a map of entity type -> array of unique entity texts
-                                const entityGroups = {};
-                                nlpData.entities.forEach(ent => {
-                                    if (!entityGroups[ent.label]) {
-                                        entityGroups[ent.label] = new Set();
-                                    }
-                                    entityGroups[ent.label].add(ent.text);
-                                });
-                                
-                                // Entity type descriptions for tooltips
-                                const typeDescriptions = {
-                                    'ORG': 'Organizations & Companies',
-                                    'PERSON': 'People & Names',
-                                    'GPE': 'Countries, Cities & States',
-                                    'LOC': 'Locations & Places',
-                                    'DATE': 'Dates & Time Periods',
-                                    'CARDINAL': 'Numbers & Quantities',
-                                    'PERCENT': 'Percentages',
-                                    'PRODUCT': 'Products & Services',
-                                    'EVENT': 'Events',
-                                    'LAW': 'Laws & Regulations',
-                                    'NORP': 'Nationalities & Groups',
-                                    'FAC': 'Facilities & Buildings',
-                                    'WORK_OF_ART': 'Works of Art',
-                                    'LANGUAGE': 'Languages',
-                                    'ORDINAL': 'Ordinal Numbers',
-                                    'TIME': 'Times',
-                                    'QUANTITY': 'Quantities'
-                                };
-                                
-                                // Sort entity types by count (most common first)
-                                const sortedTypes = Object.keys(entityGroups).sort(
-                                    (a, b) => entityGroups[b].size - entityGroups[a].size
-                                );
-                                
-                                return sortedTypes.map(entityType => {
-                                    const uniqueEntities = Array.from(entityGroups[entityType]);
-                                    // Get the color style for this entity type
-                                    const colorStyle = styles[`entityTag${entityType}`] || styles.entityTagDefault;
-                                    // Border color based on entity type
-                                    const borderColors = {
-                                        'ORG': '#1565c0',
-                                        'PERSON': '#c2185b',
-                                        'GPE': '#2e7d32',
-                                        'LOC': '#3949ab',
-                                        'DATE': '#ef6c00',
-                                        'CARDINAL': '#7b1fa2',
-                                        'PERCENT': '#00838f',
-                                        'PRODUCT': '#d84315',
-                                        'EVENT': '#ff8f00',
-                                        'LAW': '#5d4037'
-                                    };
-                                    
-                                    return (
-                                        <div 
-                                            key={entityType} 
-                                            style={{
-                                                ...styles.entityTypeGroup,
-                                                borderLeftColor: borderColors[entityType] || '#6c757d'
-                                            }}
-                                        >
-                                            <div style={styles.entityTypeHeader}>
-                                                <span style={styles.entityTypeLabel}>
-                                                    {typeDescriptions[entityType] || entityType}
-                                                </span>
-                                                <span style={{
-                                                    ...styles.entityTypeCount,
-                                                    background: borderColors[entityType] || '#6c757d'
-                                                }}>
-                                                    {uniqueEntities.length}
-                                                </span>
-                                            </div>
-                                            <div style={styles.entityTagsContainer}>
-                                                {uniqueEntities.slice(0, 20).map((text, idx) => (
-                                                    <span 
-                                                        key={idx} 
-                                                        style={{...styles.entityTag, ...colorStyle}}
-                                                        title={`Type: ${entityType}`}
-                                                    >
-                                                        {text}
-                                                    </span>
-                                                ))}
-                                                {uniqueEntities.length > 20 && (
-                                                    <span style={{...styles.entityTag, ...styles.entityTagDefault}}>
-                                                        +{uniqueEntities.length - 20} more
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                });
-                            })()}
-                        </div>
-                    </div>
-                )}
-
-                {/* ==================== TOP WORDS SECTION ==================== */}
-                {/* Shows the 20 most frequently appearing words */}
-                <div style={styles.section}>
-                    <h3>
-                        <i className="bi bi-sort-down me-2"></i>
-                        Top 20 Most Frequent Words
-                    </h3>
-                    <div style={styles.wordList}>
-                        {/* Loop through the topWords array */}
-                        {nlpData.topWords.map((item, index) => (
-                            <div key={index} style={styles.wordItem}>
-                                {/* Show ranking number (e.g., #1, #2, #3) */}
-                                <span style={styles.rank}>#{index + 1}</span>
-                                {/* Show the actual word */}
-                                <span style={styles.word}>{item.word}</span>
-                                {/* Show how many times it appeared */}
-                                <span style={styles.count}>{item.count}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ==================== EXTRACTED TEXT SECTION ==================== */}
-                {/* Shows the full text that was extracted from the PDF */}
-                <div style={styles.section}>
-                    <h3>
-                        <i className="bi bi-file-text me-2"></i>
-                        Extracted Text
-                    </h3>
-                    {/* Scrollable text box with the raw extracted text */}
-                    <div style={styles.textBox}>
-                        {nlpData.extractedText}
-                    </div>
-                </div>
-
-                {/* ==================== PROCESSED TOKENS SECTION ==================== */}
-                {/* Shows individual words after NLP processing */}
-                <div style={styles.section}>
-                    <h3>
-                        <i className="bi bi-tags me-2"></i>
-                        Processed Tokens (First 100)
-                    </h3>
-                    <p style={styles.description}>
-                        Words after tokenization, stopword removal, and lemmatization
-                    </p>
-                    <div style={styles.tokenBox}>
-                        {/* Show only the first 100 tokens to keep the UI fast */}
-                        {nlpData.processedTokens.slice(0, 100).map((token, index) => (
-                            <span key={index} style={styles.token}>{token}</span>
-                        ))}
-                        {/* If there are more than 100 tokens, show how many more */}
-                        {nlpData.processedTokens.length > 100 && (
-                            <span style={styles.tokenMore}>
-                                +{nlpData.processedTokens.length - 100} more
-                            </span>
-                        )}
-                    </div>
-                </div>
+                <NLPAnalysisAuditPanel
+                    auditFlags={auditFlags}
+                    documentLabel={documentLabel}
+                />
             </div>
         </div>
     );

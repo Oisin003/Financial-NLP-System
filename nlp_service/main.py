@@ -7,8 +7,10 @@ from nltk.corpus import stopwords # For stopword removal
 import string # For string manipulation
 from sklearn.feature_extraction.text import TfidfVectorizer # For text vectorization
 from sklearn.decomposition import LatentDirichletAllocation # For topic modeling
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np # For numerical operations
 import time # For measuring processing time
+import re
 
 # Create the FastAPI app instance
 app = FastAPI()
@@ -138,6 +140,134 @@ def preprocess(text):
     cleaned_text = ' '.join(cleaned_words)
     return cleaned_text
 
+def split_sentences(text):
+    # Keep sentence splitting conservative to avoid breaking financial rows
+    candidates = re.split(r'(?<=[.!?])\s+|\n+', text)
+    cleaned = []
+    seen = set()
+
+    for sentence in candidates:
+        normalized = re.sub(r'\s+', ' ', sentence).strip()
+        if len(normalized) < 25:
+            continue
+
+        signature = normalized.lower()
+        if signature in seen:
+            continue
+
+        seen.add(signature)
+        cleaned.append(normalized)
+
+    return cleaned
+
+def sentence_financial_weight(sentence):
+    lower = sentence.lower()
+    score = 1.0
+
+    financial_keywords = [
+        'turnover', 'revenue', 'sales', 'profit', 'loss', 'gross', 'operating', 'tax',
+        'assets', 'liabilities', 'equity', 'cash', 'debt', 'borrowings', 'creditors',
+        'debtors', 'income', 'expenses', 'interest', 'margin'
+    ]
+
+    keyword_hits = sum(1 for keyword in financial_keywords if keyword in lower)
+    if keyword_hits > 0:
+        score += min(0.8, keyword_hits * 0.12)
+
+    if re.search(r'£\s*\d|\d{1,3}(?:,\d{3})+', sentence):
+        score += 0.35
+
+    return score
+
+def textrank_summary(text, max_sentences=4):
+    sentences = split_sentences(text)
+    if len(sentences) == 0:
+        return text.strip()
+    if len(sentences) <= max_sentences:
+        return ' '.join(sentences)
+
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf = vectorizer.fit_transform(sentences)
+
+    sim_matrix = cosine_similarity(tfidf)
+    np.fill_diagonal(sim_matrix, 0.0)
+
+    # Normalize rows to make a stochastic matrix
+    row_sums = sim_matrix.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1.0
+    transition = sim_matrix / row_sums
+
+    n = len(sentences)
+    scores = np.ones(n) / n
+    damping = 0.85
+
+    for _ in range(30):
+        scores = (1 - damping) / n + damping * transition.T.dot(scores)
+
+    weighted_scores = []
+    for idx, sentence in enumerate(sentences):
+        weighted_scores.append((idx, scores[idx] * sentence_financial_weight(sentence)))
+
+    top_indices = [idx for idx, _ in sorted(weighted_scores, key=lambda item: item[1], reverse=True)[:max_sentences]]
+    top_indices.sort()
+
+    return ' '.join(sentences[idx] for idx in top_indices)
+
+def extract_financial_figures(text, limit=40):
+    amount_pattern = re.compile(r'(?<!\w)(?:£\s*)?\(?-?\d{1,3}(?:,\d{3})+(?:\.\d+)?\)?(?!\w)|(?<!\w)(?:£\s*)?\(?-?\d{4,}(?:\.\d+)?\)?(?!\w)')
+    financial_keywords = [
+        'turnover', 'revenue', 'sales', 'profit', 'loss', 'gross', 'operating', 'tax',
+        'assets', 'liabilities', 'equity', 'cash', 'debt', 'borrowings', 'creditors',
+        'debtors', 'income', 'expenses', 'interest', 'margin', 'shareholders', 'funds'
+    ]
+
+    figures = []
+    seen_values = set()
+
+    for match in amount_pattern.finditer(text):
+        raw_value = match.group().strip()
+        normalized_value = raw_value.replace(' ', '')
+
+        numeric = re.sub(r'[£,()\s]', '', raw_value)
+        if numeric.startswith('-'):
+            numeric_abs = numeric[1:]
+        else:
+            numeric_abs = numeric
+
+        try:
+            num_val = float(numeric_abs)
+        except ValueError:
+            continue
+
+        has_currency = '£' in raw_value
+        has_comma = ',' in raw_value
+        if not has_currency and not has_comma and 1900 <= num_val <= 2100:
+            continue
+
+        context_start = max(0, match.start() - 80)
+        context_end = min(len(text), match.end() + 80)
+        context = text[context_start:context_end]
+        context_lower = context.lower()
+
+        if not any(keyword in context_lower for keyword in financial_keywords):
+            continue
+
+        if normalized_value in seen_values:
+            continue
+
+        seen_values.add(normalized_value)
+        figures.append({
+            "text": raw_value,
+            "start_char": match.start(),
+            "end_char": match.end(),
+            "context": re.sub(r'\s+', ' ', context).strip()
+        })
+
+        if len(figures) >= limit:
+            break
+
+    return figures
+
 # Health check endpoint: lets you verify the service is running
 @app.get("/")
 def read_root():
@@ -196,27 +326,15 @@ def analyze_document(request: TextRequest):
         all_entities.append(entity_info)
 
     # ========== STEP 3: Extract Financial Figures ==========
-    # Filter to get only MONEY entities (dollar amounts, etc.)
-    financial_figures = []
-    non_money_entities = []
-    
-    for entity in all_entities:
-        if entity["label"] == "MONEY":
-            # This is a money amount - add to financial figures
-            money_info = {
-                "text": entity["text"],
-                "start_char": entity["start_char"],
-                "end_char": entity["end_char"]
-            }
-            financial_figures.append(money_info)
-        else:
-            # This is another type of entity - keep separately
-            non_money_entities.append(entity)
+    # Use regex + nearby financial context for cleaner, more reliable values
+    financial_figures = extract_financial_figures(original_text)
+
+    # Keep non-money entities for entity panels (financial figures are already separate)
+    non_money_entities = [entity for entity in all_entities if entity["label"] != "MONEY"]
 
     # ========== STEP 4: Topic Modeling (LDA) ==========
     # Find the main topics discussed in the document
     from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-    import re
     
     # Split text into sentences
     sentences = re.split(r'(?<=[.!?]) +', original_text)
@@ -256,26 +374,7 @@ def analyze_document(request: TextRequest):
         })
 
     # ========== STEP 5: Create Summary ==========
-    # Find sentences that mention money (these are likely important)
-    sentences_with_money = []
-    for sentence in sentences:
-        sentence_doc = nlp(sentence)
-        # Check if this sentence contains any MONEY entities
-        has_money_mention = False
-        for entity in sentence_doc.ents:
-            if entity.label_ == "MONEY":
-                has_money_mention = True
-                break
-        if has_money_mention:
-            sentences_with_money.append(sentence)
-    
-    # Build summary from money-related sentences, or use first sentence as fallback
-    if len(sentences_with_money) > 0:
-        summary = " ".join(sentences_with_money)
-    elif len(sentences) > 0:
-        summary = sentences[0]
-    else:
-        summary = original_text
+    summary = textrank_summary(original_text, max_sentences=4)
 
     # ========== STEP 6: Calculate Processing Time ==========
     end_time = time.time()

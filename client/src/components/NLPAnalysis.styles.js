@@ -44,6 +44,15 @@ export const styles = {
     padding: '20px',
     borderRadius: '8px'
   },
+  summaryBox: {
+    marginTop: '12px',
+    background: 'white',
+    borderLeft: '4px solid #0d6efd',
+    borderRadius: '6px',
+    padding: '14px 16px',
+    lineHeight: '1.6',
+    color: '#1f2937'
+  },
   auditList: {
     marginTop: '15px',
     display: 'flex',
@@ -97,6 +106,45 @@ export const styles = {
     fontSize: '12px',
     color: '#6c757d'
   },
+  auditGroupsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  auditGroupSection: {
+    background: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: '8px',
+    padding: '10px 12px'
+  },
+  auditGroupTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    color: '#334155',
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px'
+  },
+  auditEvidenceList: {
+    margin: '8px 0 0 0',
+    paddingLeft: '18px',
+    color: '#475569',
+    fontSize: '12px'
+  },
+  auditEvidenceItem: {
+    marginBottom: '4px',
+    lineHeight: '1.4'
+  },
+  auditEvidenceWrapper: {
+    marginTop: '8px'
+  },
+  auditEvidenceToggleBtn: {
+    background: '#e2e8f0',
+    color: '#1e293b',
+    border: '1px solid #cbd5e1',
+    borderRadius: '5px',
+    padding: '4px 10px',
+    fontSize: '12px',
+    cursor: 'pointer'
+  },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
@@ -142,8 +190,9 @@ export const styles = {
     borderRadius: '4px',
     padding: '8px 12px',
     display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '4px',
     fontWeight: 500,
     fontSize: '16px',
   },
@@ -155,7 +204,13 @@ export const styles = {
   financialFigureMeta: {
     color: '#555',
     fontSize: '13px',
-    marginLeft: '8px',
+    marginLeft: '0',
+  },
+  financialFigureContext: {
+    color: '#334155',
+    fontSize: '12px',
+    lineHeight: '1.4',
+    opacity: 0.9
   },
   // --- Named Entities Styles ---
   entitiesContainer: {

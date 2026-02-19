@@ -63,6 +63,12 @@ const ensureDocumentsSchema = async () => {
         allowNull: true
       });
     }
+    if (!table.nlpSummary) {
+      await queryInterface.addColumn('documents', 'nlpSummary', {
+        type: DataTypes.TEXT,
+        allowNull: true
+      });
+    }
   } catch (error) {
     console.error('Schema check error:', error);
   }
