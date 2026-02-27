@@ -140,11 +140,12 @@ def preprocess(text):
     cleaned_text = ' '.join(cleaned_words)
     return cleaned_text
 
-def split_sentences(text):
+def split_sentences_with_offsets(text):
     # Keep sentence splitting conservative to avoid breaking financial rows
     candidates = re.split(r'(?<=[.!?])\s+|\n+', text)
     cleaned = []
     seen = set()
+    cursor = 0
 
     for sentence in candidates:
         normalized = re.sub(r'\s+', ' ', sentence).strip()
@@ -155,12 +156,35 @@ def split_sentences(text):
         if signature in seen:
             continue
 
+        start_char = text.find(normalized, cursor)
+        if start_char == -1:
+            start_char = text.find(normalized)
+        if start_char == -1:
+            start_char = max(0, cursor)
+
+        end_char = min(len(text), start_char + len(normalized))
+        cursor = end_char
+
         seen.add(signature)
-        cleaned.append(normalized)
+        cleaned.append({
+            "id": len(cleaned),
+            "text": normalized,
+            "start_char": start_char,
+            "end_char": end_char
+        })
 
     return cleaned
 
-def sentence_financial_weight(sentence):
+def overlap_count(start_char, end_char, spans):
+    count = 0
+    for span in spans:
+        span_start = span.get("start_char", -1)
+        span_end = span.get("end_char", -1)
+        if span_start < end_char and span_end > start_char:
+            count += 1
+    return count
+
+def sentence_financial_weight(sentence, figure_hits=0, entity_hits=0):
     lower = sentence.lower()
     score = 1.0
 
@@ -171,47 +195,230 @@ def sentence_financial_weight(sentence):
     ]
 
     keyword_hits = sum(1 for keyword in financial_keywords if keyword in lower)
-    if keyword_hits > 0:
-        score += min(0.8, keyword_hits * 0.12)
+    keyword_bonus = min(0.8, keyword_hits * 0.12) if keyword_hits > 0 else 0.0
+    score += keyword_bonus
 
-    if re.search(r'£\s*\d|\d{1,3}(?:,\d{3})+', sentence):
-        score += 0.35
+    contains_number = bool(re.search(r'£\s*\d|\d{1,3}(?:,\d{3})+', sentence))
+    numeric_bonus = 0.35 if contains_number else 0.0
+    score += numeric_bonus
 
-    return score
+    figure_bonus = min(0.6, figure_hits * 0.18)
+    score += figure_bonus
 
-def textrank_summary(text, max_sentences=4):
-    sentences = split_sentences(text)
+    entity_bonus = min(0.4, entity_hits * 0.08)
+    score += entity_bonus
+
+    if len(sentence) > 420:
+        score -= 0.15
+
+    score = max(0.25, score)
+
+    return score, {
+        "keyword_hits": keyword_hits,
+        "keyword_bonus": round(keyword_bonus, 4),
+        "contains_number": contains_number,
+        "numeric_bonus": round(numeric_bonus, 4),
+        "figure_hits": figure_hits,
+        "figure_bonus": round(figure_bonus, 4),
+        "entity_hits": entity_hits,
+        "entity_bonus": round(entity_bonus, 4)
+    }
+
+def tokenize_for_evaluation(text):
+    if not text:
+        return []
+    return re.findall(r"[A-Za-z0-9£$€]+(?:[-'][A-Za-z0-9]+)?", text.lower())
+
+def build_summary_evaluation_payload(summary_text, source_sentences, selected_sentence_ids):
+    selected_sentences = [
+        sentence["text"]
+        for sentence in source_sentences
+        if sentence["id"] in selected_sentence_ids
+    ]
+
+    return {
+        "candidate_summary": summary_text,
+        "candidate_sentences": selected_sentences,
+        "candidate_tokens": tokenize_for_evaluation(summary_text),
+        "source_sentence_count": len(source_sentences),
+        "source_tokens": tokenize_for_evaluation(' '.join(sentence["text"] for sentence in source_sentences)),
+        "selected_sentence_ids": selected_sentence_ids,
+        "metrics_ready": {
+            "rouge": ["rouge-1", "rouge-2", "rouge-l"],
+            "bleu": ["bleu-1", "bleu-2", "bleu-3", "bleu-4"]
+        },
+        "reference_template": {
+            "human_reference_summary": ""
+        }
+    }
+
+def textrank_summary(text, entities=None, financial_figures=None, max_sentences=4):
+    entities = entities or []
+    financial_figures = financial_figures or []
+
+    sentences = split_sentences_with_offsets(text)
     if len(sentences) == 0:
-        return text.strip()
+        fallback = text.strip()
+        return {
+            "summary": fallback,
+            "selected_sentence_ids": [],
+            "sentence_trace": [],
+            "evaluation_payload": build_summary_evaluation_payload(fallback, [], [])
+        }
     if len(sentences) <= max_sentences:
-        return ' '.join(sentences)
+        selected_ids = [sentence["id"] for sentence in sentences]
+        summary_text = ' '.join(sentence["text"] for sentence in sentences)
+        sentence_trace = []
+        for sentence in sentences:
+            sentence_trace.append({
+                "id": sentence["id"],
+                "text": sentence["text"],
+                "start_char": sentence["start_char"],
+                "end_char": sentence["end_char"],
+                "base_score": 1.0,
+                "financial_weight": 1.0,
+                "final_score": 1.0,
+                "selected": True,
+                "scoring_features": {
+                    "keyword_hits": 0,
+                    "keyword_bonus": 0.0,
+                    "contains_number": bool(re.search(r'£\s*\d|\d{1,3}(?:,\d{3})+', sentence["text"])),
+                    "numeric_bonus": 0.0,
+                    "figure_hits": overlap_count(sentence["start_char"], sentence["end_char"], financial_figures),
+                    "figure_bonus": 0.0,
+                    "entity_hits": overlap_count(sentence["start_char"], sentence["end_char"], entities),
+                    "entity_bonus": 0.0
+                }
+            })
+
+        return {
+            "summary": summary_text,
+            "selected_sentence_ids": selected_ids,
+            "sentence_trace": sentence_trace,
+            "evaluation_payload": build_summary_evaluation_payload(summary_text, sentences, selected_ids)
+        }
+
+    sentence_texts = [sentence["text"] for sentence in sentences]
 
     vectorizer = TfidfVectorizer(stop_words='english')
-    tfidf = vectorizer.fit_transform(sentences)
+    tfidf = vectorizer.fit_transform(sentence_texts)
 
     sim_matrix = cosine_similarity(tfidf)
+    sim_matrix = np.nan_to_num(sim_matrix, nan=0.0, posinf=0.0, neginf=0.0)
     np.fill_diagonal(sim_matrix, 0.0)
 
     # Normalize rows to make a stochastic matrix
     row_sums = sim_matrix.sum(axis=1, keepdims=True)
-    row_sums[row_sums == 0] = 1.0
-    transition = sim_matrix / row_sums
+    safe_row_sums = np.where(row_sums <= 1e-12, 1.0, row_sums)
+    transition = sim_matrix / safe_row_sums
 
-    n = len(sentences)
+    n = len(sentence_texts)
+    zero_rows = (row_sums <= 1e-12).reshape(-1)
+    if np.any(zero_rows):
+        transition[zero_rows, :] = 1.0 / n
+
     scores = np.ones(n) / n
     damping = 0.85
 
-    for _ in range(30):
-        scores = (1 - damping) / n + damping * transition.T.dot(scores)
+    for _ in range(100):
+        updated_scores = (1 - damping) / n + damping * transition.T.dot(scores)
+        updated_scores = np.nan_to_num(updated_scores, nan=1.0 / n, posinf=1.0 / n, neginf=1.0 / n)
+        if np.linalg.norm(updated_scores - scores, ord=1) < 1e-8:
+            scores = updated_scores
+            break
+        scores = updated_scores
 
+    sentence_trace = []
     weighted_scores = []
     for idx, sentence in enumerate(sentences):
-        weighted_scores.append((idx, scores[idx] * sentence_financial_weight(sentence)))
+        figure_hits = overlap_count(sentence["start_char"], sentence["end_char"], financial_figures)
+        entity_hits = overlap_count(sentence["start_char"], sentence["end_char"], entities)
+        financial_weight, scoring_features = sentence_financial_weight(
+            sentence["text"],
+            figure_hits=figure_hits,
+            entity_hits=entity_hits
+        )
+        base_score = float(scores[idx])
+        final_score = float(base_score * financial_weight)
 
-    top_indices = [idx for idx, _ in sorted(weighted_scores, key=lambda item: item[1], reverse=True)[:max_sentences]]
-    top_indices.sort()
+        weighted_scores.append((idx, final_score))
+        sentence_trace.append({
+            "id": sentence["id"],
+            "text": sentence["text"],
+            "start_char": sentence["start_char"],
+            "end_char": sentence["end_char"],
+            "base_score": round(base_score, 6),
+            "financial_weight": round(financial_weight, 6),
+            "final_score": round(final_score, 6),
+            "selected": False,
+            "scoring_features": scoring_features
+        })
 
-    return ' '.join(sentences[idx] for idx in top_indices)
+    sorted_scores = sorted(weighted_scores, key=lambda item: item[1], reverse=True)
+    selected_indices = [idx for idx, _ in sorted_scores[:max_sentences]]
+
+    # Ensure at least one highly numeric sentence is selected when financial figures exist
+    if financial_figures and not any(
+        sentence_trace[idx]["scoring_features"]["figure_hits"] > 0
+        for idx in selected_indices
+    ):
+        numeric_candidates = [
+            idx for idx, trace in enumerate(sentence_trace)
+            if trace["scoring_features"]["figure_hits"] > 0 or trace["scoring_features"]["contains_number"]
+        ]
+        if numeric_candidates:
+            best_numeric_idx = max(
+                numeric_candidates,
+                key=lambda candidate_idx: sentence_trace[candidate_idx]["final_score"]
+            )
+            lowest_idx = min(selected_indices, key=lambda candidate_idx: sentence_trace[candidate_idx]["final_score"])
+            if best_numeric_idx not in selected_indices:
+                selected_indices.remove(lowest_idx)
+                selected_indices.append(best_numeric_idx)
+
+    selected_indices.sort()
+    selected_ids = [sentences[idx]["id"] for idx in selected_indices]
+    for idx in selected_indices:
+        sentence_trace[idx]["selected"] = True
+
+    summary_text = ' '.join(sentence_texts[idx] for idx in selected_indices)
+
+    return {
+        "summary": summary_text,
+        "selected_sentence_ids": selected_ids,
+        "sentence_trace": sentence_trace,
+        "evaluation_payload": build_summary_evaluation_payload(summary_text, sentences, selected_ids)
+    }
+
+def build_decision_trace(summary_result, entities, financial_figures, topic_words):
+    topic_trace = []
+    for topic in topic_words:
+        topic_trace.append({
+            "topic": topic.get("topic"),
+            "rule": "Top-5 terms from LDA component weights",
+            "keywords": topic.get("keywords", [])
+        })
+
+    return {
+        "summary": {
+            "method": "textrank_extractive_v2",
+            "rule": "Sentence graph ranking + financial/entity weighting + numeric coverage safeguard",
+            "selected_sentence_ids": summary_result.get("selected_sentence_ids", []),
+            "sentence_decisions": summary_result.get("sentence_trace", [])
+        },
+        "entity_and_rule_provenance": {
+            "entities_used_count": len(entities),
+            "financial_figures_used_count": len(financial_figures),
+            "entity_examples": entities[:20],
+            "financial_figure_examples": financial_figures[:20],
+            "figure_extraction_rule": "Regex amount match + nearby financial keyword context + de-duplication"
+        },
+        "topics": {
+            "method": "LDA",
+            "rule": "Top weighted tokens per topic component",
+            "topic_decisions": topic_trace
+        }
+    }
 
 def extract_financial_figures(text, limit=40):
     amount_pattern = re.compile(r'(?<!\w)(?:£\s*)?\(?-?\d{1,3}(?:,\d{3})+(?:\.\d+)?\)?(?!\w)|(?<!\w)(?:£\s*)?\(?-?\d{4,}(?:\.\d+)?\)?(?!\w)')
@@ -374,7 +581,22 @@ def analyze_document(request: TextRequest):
         })
 
     # ========== STEP 5: Create Summary ==========
-    summary = textrank_summary(original_text, max_sentences=4)
+    summary_result = textrank_summary(
+        original_text,
+        entities=non_money_entities,
+        financial_figures=financial_figures,
+        max_sentences=4
+    )
+    summary = summary_result["summary"]
+    summary_evaluation = summary_result["evaluation_payload"]
+
+    # ========== STEP 5b: Build Explainability Trace ==========
+    decision_trace = build_decision_trace(
+        summary_result=summary_result,
+        entities=non_money_entities,
+        financial_figures=financial_figures,
+        topic_words=topic_words
+    )
 
     # ========== STEP 6: Calculate Processing Time ==========
     end_time = time.time()
@@ -386,6 +608,8 @@ def analyze_document(request: TextRequest):
         "financial_figures": financial_figures,
         "topics": topic_words,
         "summary": summary,
+        "summary_evaluation": summary_evaluation,
+        "decision_trace": decision_trace,
         "processing_time_seconds": round(processing_time, 3),
         "input": original_text
     }

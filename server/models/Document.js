@@ -120,6 +120,38 @@ const Document = sequelize.define('Document', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+
+  // Evaluation-ready metadata for ROUGE/BLEU scoring of generated summary
+  nlpSummaryEvaluation: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const value = this.getDataValue('nlpSummaryEvaluation');
+      if (!value) {
+        return null;
+      }
+      return JSON.parse(value);
+    },
+    set(value) {
+      this.setDataValue('nlpSummaryEvaluation', JSON.stringify(value));
+    }
+  },
+
+  // Explainability trace: shows which entities/rules drove NLP decisions
+  nlpDecisionTrace: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const value = this.getDataValue('nlpDecisionTrace');
+      if (!value) {
+        return null;
+      }
+      return JSON.parse(value);
+    },
+    set(value) {
+      this.setDataValue('nlpDecisionTrace', JSON.stringify(value));
+    }
+  },
   
   // Processed tokens
   // Stored as JSON array

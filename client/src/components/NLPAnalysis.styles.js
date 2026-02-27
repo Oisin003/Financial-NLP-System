@@ -53,6 +53,72 @@ export const styles = {
     lineHeight: '1.6',
     color: '#1f2937'
   },
+  evaluationGrid: {
+    marginTop: '12px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '10px'
+  },
+  evaluationCard: {
+    background: 'white',
+    borderRadius: '6px',
+    borderLeft: '4px solid #198754',
+    padding: '10px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  evaluationLabel: {
+    fontSize: '12px',
+    color: '#475569',
+    fontWeight: '600'
+  },
+  evaluationValue: {
+    fontSize: '16px',
+    color: '#0f172a',
+    fontWeight: '700'
+  },
+  traceRuleBox: {
+    marginTop: '12px',
+    background: 'white',
+    borderRadius: '6px',
+    borderLeft: '4px solid #6f42c1',
+    padding: '10px 12px',
+    color: '#1e293b'
+  },
+  traceList: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  traceItem: {
+    background: 'white',
+    borderRadius: '6px',
+    padding: '10px 12px',
+    borderLeft: '4px solid #6f42c1'
+  },
+  traceItemHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '6px'
+  },
+  traceItemTitle: {
+    fontWeight: '700',
+    color: '#334155',
+    fontSize: '13px'
+  },
+  traceItemScore: {
+    fontWeight: '600',
+    color: '#6f42c1',
+    fontSize: '12px'
+  },
+  traceItemText: {
+    color: '#1f2937',
+    lineHeight: '1.5',
+    fontSize: '14px'
+  },
   auditList: {
     marginTop: '15px',
     display: 'flex',

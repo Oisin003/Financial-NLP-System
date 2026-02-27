@@ -69,6 +69,18 @@ const ensureDocumentsSchema = async () => {
         allowNull: true
       });
     }
+    if (!table.nlpSummaryEvaluation) {
+      await queryInterface.addColumn('documents', 'nlpSummaryEvaluation', {
+        type: DataTypes.TEXT,
+        allowNull: true
+      });
+    }
+    if (!table.nlpDecisionTrace) {
+      await queryInterface.addColumn('documents', 'nlpDecisionTrace', {
+        type: DataTypes.TEXT,
+        allowNull: true
+      });
+    }
   } catch (error) {
     console.error('Schema check error:', error);
   }
