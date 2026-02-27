@@ -4,6 +4,26 @@ import { styles } from './NLPAnalysis.styles';
 // Renders summary-style sections near the top of the NLP report.
 // This includes headline metrics, generated summary, timing, and extracted figures.
 function NLPAnalysisOverviewSection({ nlpData, stats, summaryText, financialFigures }) {
+  const summaryEvaluation = nlpData && nlpData.summary_evaluation ? nlpData.summary_evaluation : null;
+  const hasSummaryEvaluation = !!summaryEvaluation;
+  const candidateTokenCount = hasSummaryEvaluation && Array.isArray(summaryEvaluation.candidate_tokens)
+    ? summaryEvaluation.candidate_tokens.length
+    : 0;
+  const sourceSentenceCount = hasSummaryEvaluation && summaryEvaluation.source_sentence_count
+    ? summaryEvaluation.source_sentence_count
+    : 0;
+
+  const decisionTraceSummary = nlpData && nlpData.decision_trace && nlpData.decision_trace.summary
+    ? nlpData.decision_trace.summary
+    : null;
+  const selectedTraceDecisions = decisionTraceSummary && Array.isArray(decisionTraceSummary.sentence_decisions)
+    ? decisionTraceSummary.sentence_decisions.filter(function(decision) {
+      return decision.selected;
+    })
+    : [];
+
+  const hasTiming = nlpData && nlpData.timing && nlpData.timing.duration;
+
   return (
     <>
       {/* High-level statistics used as an immediate document snapshot. */}
@@ -39,7 +59,7 @@ function NLPAnalysisOverviewSection({ nlpData, stats, summaryText, financialFigu
         </div>
       )}
 
-      {nlpData.summary_evaluation && (
+      {hasSummaryEvaluation && (
         <div style={styles.section}>
           <h3>
             <i className="bi bi-check2-square me-2"></i>
@@ -48,15 +68,11 @@ function NLPAnalysisOverviewSection({ nlpData, stats, summaryText, financialFigu
           <div style={styles.evaluationGrid}>
             <div style={styles.evaluationCard}>
               <span style={styles.evaluationLabel}>Candidate Tokens</span>
-              <span style={styles.evaluationValue}>
-                {Array.isArray(nlpData.summary_evaluation.candidate_tokens)
-                  ? nlpData.summary_evaluation.candidate_tokens.length
-                  : 0}
-              </span>
+              <span style={styles.evaluationValue}>{candidateTokenCount}</span>
             </div>
             <div style={styles.evaluationCard}>
               <span style={styles.evaluationLabel}>Source Sentences</span>
-              <span style={styles.evaluationValue}>{nlpData.summary_evaluation.source_sentence_count || 0}</span>
+              <span style={styles.evaluationValue}>{sourceSentenceCount}</span>
             </div>
             <div style={styles.evaluationCard}>
               <span style={styles.evaluationLabel}>Metrics Ready</span>
@@ -66,34 +82,31 @@ function NLPAnalysisOverviewSection({ nlpData, stats, summaryText, financialFigu
         </div>
       )}
 
-      {nlpData.decision_trace && nlpData.decision_trace.summary && (
+      {decisionTraceSummary && (
         <div style={styles.section}>
           <h3>
             <i className="bi bi-diagram-3 me-2"></i>
             Explainability Trace
           </h3>
           <div style={styles.traceRuleBox}>
-            <strong>Summary rule:</strong> {nlpData.decision_trace.summary.rule}
+            <strong>Summary rule:</strong> {decisionTraceSummary.rule}
           </div>
           <div style={styles.traceList}>
-            {Array.isArray(nlpData.decision_trace.summary.sentence_decisions) &&
-              nlpData.decision_trace.summary.sentence_decisions
-                .filter((decision) => decision.selected)
-                .map((decision) => (
-                  <div key={decision.id} style={styles.traceItem}>
-                    <div style={styles.traceItemHeader}>
-                      <span style={styles.traceItemTitle}>Sentence #{decision.id}</span>
-                      <span style={styles.traceItemScore}>Score {decision.final_score}</span>
-                    </div>
-                    <div style={styles.traceItemText}>{decision.text}</div>
-                  </div>
-                ))}
+            {selectedTraceDecisions.map((decision) => (
+              <div key={decision.id} style={styles.traceItem}>
+                <div style={styles.traceItemHeader}>
+                  <span style={styles.traceItemTitle}>Sentence #{decision.id}</span>
+                  <span style={styles.traceItemScore}>Score {decision.final_score}</span>
+                </div>
+                <div style={styles.traceItemText}>{decision.text}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Timing details for traceability of analysis runtime. */}
-      {nlpData.timing && nlpData.timing.duration && (
+      {hasTiming && (
         <div style={styles.section}>
           <h3>
             <i className="bi bi-clock-history me-2"></i>

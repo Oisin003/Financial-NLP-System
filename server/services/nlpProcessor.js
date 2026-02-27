@@ -411,6 +411,73 @@ function findLineContainingAnyPhrase(lines, phrases) {
   return null;
 }
 
+function getLineFromMetric(metricResult) {
+  if (!metricResult) {
+    return null;
+  }
+
+  return metricResult.line;
+}
+
+function getRagSeverity(status) {
+  if (status === 'red') {
+    return 'high';
+  }
+
+  if (status === 'amber') {
+    return 'medium';
+  }
+
+  return 'low';
+}
+
+function determineRagResult(turnoverValue, profitValue, netAssetsValue) {
+  const hasTurnover = turnoverValue !== null;
+  const hasProfit = profitValue !== null;
+  const hasNetAssets = netAssetsValue !== null;
+
+  const lowTurnover = hasTurnover && turnoverValue < AUDIT_THRESHOLDS.turnover;
+  const negativeProfitBeforeTax = hasProfit && profitValue < 0;
+  const netLiabilities = hasNetAssets && netAssetsValue < 0;
+
+  let ragStatus = 'unknown';
+  let ragReason = '';
+
+  if (lowTurnover) {
+    ragStatus = 'red';
+    ragReason = `Turnover (${formatCurrency(turnoverValue)}) is below £350,000 threshold`;
+  } else if (netLiabilities && negativeProfitBeforeTax) {
+    ragStatus = 'red';
+    ragReason = 'Net liabilities combined with negative profit before tax';
+  } else if (negativeProfitBeforeTax) {
+    ragStatus = 'amber';
+    ragReason = `Negative profit before tax (${formatCurrency(profitValue)})`;
+  } else if (netLiabilities) {
+    ragStatus = 'amber';
+    ragReason = `Net liabilities position (${formatCurrency(netAssetsValue)})`;
+  } else if (hasTurnover && hasProfit && hasNetAssets) {
+    const turnoverIsHealthy = turnoverValue >= AUDIT_THRESHOLDS.turnover;
+    const profitIsHealthy = profitValue >= 0;
+    const netAssetsAreHealthy = netAssetsValue >= 0;
+
+    if (turnoverIsHealthy && profitIsHealthy && netAssetsAreHealthy) {
+      ragStatus = 'green';
+      ragReason = 'All financial indicators are positive';
+    }
+  }
+
+  return {
+    ragStatus,
+    ragReason,
+    hasTurnover,
+    hasProfit,
+    hasNetAssets,
+    lowTurnover,
+    negativeProfitBeforeTax,
+    netLiabilities
+  };
+}
+
 export function analyzeAuditFlags(text) {
   const flags = [];
   const lines = normalizeTextLines(text);
@@ -479,61 +546,33 @@ export function analyzeAuditFlags(text) {
   const profitValue = profitBeforeTax ? profitBeforeTax.value : null;
   const netAssetsValue = netAssets ? netAssets.value : null;
 
-  const hasTurnover = turnoverValue !== null;
-  const hasProfit = profitValue !== null;
-  const hasNetAssets = netAssetsValue !== null;
+  const ragResult = determineRagResult(turnoverValue, profitValue, netAssetsValue);
+  const hasTurnover = ragResult.hasTurnover;
+  const hasProfit = ragResult.hasProfit;
+  const hasNetAssets = ragResult.hasNetAssets;
   const borrowingsValue = borrowings ? borrowings.value : null;
-
-  const lowTurnover = hasTurnover && turnoverValue < AUDIT_THRESHOLDS.turnover;
-  const negativeProfitBeforeTax = hasProfit && profitValue < 0;
-  const netLiabilities = hasNetAssets && netAssetsValue < 0;
-
-  // Determine RAG status
-  let ragStatus = 'unknown';
-  let ragReason = '';
-
-  // Check for RED conditions
-  if (lowTurnover) {
-    ragStatus = 'red';
-    ragReason = `Turnover (${formatCurrency(turnoverValue)}) is below £350,000 threshold`;
-  } else if (netLiabilities && negativeProfitBeforeTax) {
-    ragStatus = 'red';
-    ragReason = 'Net liabilities combined with negative profit before tax';
-  }
-  // Check for AMBER conditions (if not already red)
-  else if (negativeProfitBeforeTax) {
-    ragStatus = 'amber';
-    ragReason = `Negative profit before tax (${formatCurrency(profitValue)})`;
-  } else if (netLiabilities) {
-    ragStatus = 'amber';
-    ragReason = `Net liabilities position (${formatCurrency(netAssetsValue)})`;
-  }
-  // Check for GREEN conditions
-  else if (hasTurnover && hasProfit && hasNetAssets &&
-           turnoverValue >= AUDIT_THRESHOLDS.turnover &&
-           profitValue >= 0 &&
-           netAssetsValue >= 0) {
-    ragStatus = 'green';
-    ragReason = 'All financial indicators are positive';
-  }
+  const ragStatus = ragResult.ragStatus;
+  const ragReason = ragResult.ragReason;
 
   // ==========================================
   // BUILD RAG FLAG
   // ==========================================
 
   if (ragStatus !== 'unknown') {
+    const ragSeverity = getRagSeverity(ragStatus);
+
     flags.push({
       id: 'rag-status',
-      severity: ragStatus === 'red' ? 'high' : ragStatus === 'amber' ? 'medium' : 'low',
+      severity: ragSeverity,
       title: `RAG Status: ${ragStatus.toUpperCase()}`,
       message: ragReason,
       evidence: {
         turnover: turnoverValue,
         profitBeforeTax: profitValue,
         netAssets: netAssetsValue,
-        turnoverLine: formatEvidenceLine(turnover?.line),
-        profitBeforeTaxLine: formatEvidenceLine(profitBeforeTax?.line),
-        netAssetsLine: formatEvidenceLine(netAssets?.line),
+        turnoverLine: formatEvidenceLine(getLineFromMetric(turnover)),
+        profitBeforeTaxLine: formatEvidenceLine(getLineFromMetric(profitBeforeTax)),
+        netAssetsLine: formatEvidenceLine(getLineFromMetric(netAssets)),
         ragStatus
       }
     });

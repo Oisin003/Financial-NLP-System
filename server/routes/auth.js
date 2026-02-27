@@ -8,7 +8,6 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';  // Input validation
 import jwt from 'jsonwebtoken';  // Create authentication tokens
 import { User } from '../models/User.js';
-import { Op } from 'sequelize';  // Database operators 
 
 const router = express.Router();
 
@@ -23,16 +22,24 @@ const passwordValidation = [
     .matches(/[@$!%*?&#]/).withMessage('Password must contain a special character')
 ];
 
+// Validation rules for registration (kept as a plain list for readability)
+const registerValidation = [
+  body('username').trim().isLength({ min: 4 }).withMessage('Please provide a valid username (at least 4 characters)'),
+  body('email').isEmail().withMessage('Please provide a valid email format'),
+  passwordValidation[0]
+];
+
+// Validation rules for login
+const loginValidation = [
+  body('email').isEmail().withMessage('Please provide a valid email format'),
+  body('password').notEmpty().withMessage('Password is required')
+];
+
 /**
  * POST /api/auth/register
  * Create a new user account
  */
-router.post('/register', [
-  // Validation rules for registration
-  body('username').trim().isLength({ min: 4 }).withMessage('Please provide a valid username (at least 4 characters)'),
-  body('email').isEmail().withMessage('Please provide a valid email format'),
-  ...passwordValidation  // Include all password rules
-], async (req, res) => {
+router.post('/register', registerValidation, async (req, res) => {
   try {
     // Step 1: Check if inputs are valid
     const errors = validationResult(req);
@@ -42,28 +49,35 @@ router.post('/register', [
 
     const { username, email, password } = req.body;
 
-    // Step 2: Check if user already exists
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ email }, { username }]
-      }
+    // Step 2: Check if email already exists
+    const existingUserByEmail = await User.findOne({
+      where: { email: email }
     });
 
-    if (existingUser) {
+    if (existingUserByEmail) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Step 3: Create new user (password is automatically hashed by User model)
+    // Step 3: Check if username already exists
+    const existingUserByUsername = await User.findOne({
+      where: { username: username }
+    });
+
+    if (existingUserByUsername) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Step 4: Create new user (password is automatically hashed by User model)
     const user = await User.create({ username, email, password });
 
-    // Step 4: Generate JWT token (expires in 7 days)
+    // Step 5: Generate JWT token (expires in 7 days)
     const token = jwt.sign(
       { id: user.id, role: user.role },  // Payload: user id and role
       process.env.JWT_SECRET || 'your-secret-key',  // Secret key for signing
       { expiresIn: '7d' }  // Token valid for 7 days
     );
 
-    // Step 5: Send back token and user info (no password!)
+    // Step 6: Send back token and user info (no password!)
     res.status(201).json({
       token,
       user: { 
@@ -84,11 +98,7 @@ router.post('/register', [
  * POST /api/auth/login
  * Log in to an existing account
  */
-router.post('/login', [
-  // Validation rules for login
-  body('email').isEmail().withMessage('Please provide a valid email format'),
-  body('password').notEmpty().withMessage('Password is required')
-], async (req, res) => {
+router.post('/login', loginValidation, async (req, res) => {
   try {
     // Step 1: Check if inputs are valid
     const errors = validationResult(req);

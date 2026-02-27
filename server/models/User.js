@@ -29,6 +29,15 @@ const sequelize = new Sequelize({
   logging: false  // Turn off SQL query logging
 });
 
+/**
+ * Helper: hash a plain-text password using bcrypt.
+ */
+async function hashPassword(plainPassword) {
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(plainPassword, salt);
+  return hashedPassword;
+}
+
 // --- USER TABLE DEFINITION ---
 // Define the structure of the Users table
 const User = sequelize.define('User', {
@@ -82,19 +91,14 @@ const User = sequelize.define('User', {
     // Hash password when creating a new user
     beforeCreate: async (user) => {
       if (user.password) {
-        // Maria Griffin taught this :)
-        // Generate salt (random data to make hash unique)
-        const salt = await bcrypt.genSalt(10);
-        // Hash the password with the salt
-        user.password = await bcrypt.hash(user.password, salt);
+        user.password = await hashPassword(user.password);
       }
     },
     
     // Hash password when updating a user (if password changed)
     beforeUpdate: async (user) => {
       if (user.changed('password')) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
+        user.password = await hashPassword(user.password);
       }
     }
   }

@@ -24,7 +24,11 @@ const auth = (req, res, next) => {
     // Header looks like: "Authorization: Bearer eyJhbGciOiJ..."
     // We need to extract just the token part (remove "Bearer ")
     const authHeader = req.header('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+    let token = null;
+
+    if (authHeader) {
+      token = authHeader.replace('Bearer ', '');
+    }
     
     // Step 2: Check if token exists
     if (!token) {
@@ -62,7 +66,7 @@ const adminAuth = (req, res, next) => {
   // (req.user was set by auth middleware)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ 
-      message: 'Access denied. Admin privileges required.' 
+      message: 'Admin only. Access denied.' 
     });
   }
   

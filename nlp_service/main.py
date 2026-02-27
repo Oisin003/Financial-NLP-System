@@ -475,6 +475,57 @@ def extract_financial_figures(text, limit=40):
 
     return figures
 
+def extract_entities_from_text(text):
+    # Run spaCy once and convert entities to plain dictionaries
+    processed_document = nlp(text)
+
+    entities = []
+    for entity in processed_document.ents:
+        entities.append({
+            "text": entity.text,
+            "label": entity.label_,
+            "start_char": entity.start_char,
+            "end_char": entity.end_char
+        })
+
+    return entities
+
+def build_topics_from_text(original_text, cleaned_text):
+    # Import here so the top of the file stays focused on core dependencies
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    # Split into candidate sentences for topic modeling
+    candidate_sentences = re.split(r'(?<=[.!?]) +', original_text)
+
+    processed_sentences = []
+    for sentence in candidate_sentences:
+        if sentence.strip():
+            processed_sentence = preprocess(sentence)
+            processed_sentences.append(processed_sentence)
+
+    # LDA needs at least two documents
+    if len(processed_sentences) < 2:
+        processed_sentences = [cleaned_text, cleaned_text]
+
+    all_stopwords = list(custom_stopwords | ENGLISH_STOP_WORDS)
+    vectorizer = TfidfVectorizer(stop_words=all_stopwords)
+    tfidf_matrix = vectorizer.fit_transform(processed_sentences)
+
+    lda_model = LatentDirichletAllocation(n_components=2, random_state=42)
+    lda_model.fit(tfidf_matrix)
+
+    topic_words = []
+    feature_names = vectorizer.get_feature_names_out()
+    for topic_number, topic_weights in enumerate(lda_model.components_):
+        top_word_indices = topic_weights.argsort()[-5:][::-1]
+        top_keywords = [feature_names[index] for index in top_word_indices]
+        topic_words.append({
+            "topic": topic_number + 1,
+            "keywords": top_keywords
+        })
+
+    return topic_words
+
 # Health check endpoint: lets you verify the service is running
 @app.get("/")
 def read_root():
@@ -488,20 +539,8 @@ class TextRequest(BaseModel):
 # NER = Named Entity Recognition (finding names, places, money amounts, etc.)
 @app.post("/ner")
 def extract_entities(request: TextRequest):
-    # Process the text using spaCy's NLP model
-    processed_document = nlp(request.text)
-    
-    # Extract all entities found in the text
-    found_entities = []
-    for entity in processed_document.ents:
-        entity_info = {
-            "text": entity.text,              # The actual text (e.g., "$1,000")
-            "label": entity.label_,           # The type (e.g., "MONEY", "PERSON")
-            "start_char": entity.start_char,  # Where it starts in the text
-            "end_char": entity.end_char       # Where it ends in the text
-        }
-        found_entities.append(entity_info)
-    
+    found_entities = extract_entities_from_text(request.text)
+
     return {"entities": found_entities, "input": request.text}
 
 
@@ -518,19 +557,7 @@ def analyze_document(request: TextRequest):
     cleaned_text = preprocess(original_text)
 
     # ========== STEP 2: Extract Named Entities (NER) ==========
-    # Use spaCy to find entities like people, organizations, money amounts
-    processed_document = nlp(original_text)
-    
-    # Build list of all entities found
-    all_entities = []
-    for entity in processed_document.ents:
-        entity_info = {
-            "text": entity.text,
-            "label": entity.label_,
-            "start_char": entity.start_char,
-            "end_char": entity.end_char
-        }
-        all_entities.append(entity_info)
+    all_entities = extract_entities_from_text(original_text)
 
     # ========== STEP 3: Extract Financial Figures ==========
     # Use regex + nearby financial context for cleaner, more reliable values
@@ -540,45 +567,7 @@ def analyze_document(request: TextRequest):
     non_money_entities = [entity for entity in all_entities if entity["label"] != "MONEY"]
 
     # ========== STEP 4: Topic Modeling (LDA) ==========
-    # Find the main topics discussed in the document
-    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-    
-    # Split text into sentences
-    sentences = re.split(r'(?<=[.!?]) +', original_text)
-    
-    # Clean each sentence
-    processed_sentences = []
-    for sentence in sentences:
-        if sentence.strip():  # Only process non-empty sentences
-            cleaned_sentence = preprocess(sentence)
-            processed_sentences.append(cleaned_sentence)
-    
-    # LDA needs at least 2 documents to work
-    if len(processed_sentences) < 2:
-        processed_sentences = [cleaned_text, cleaned_text]
-    
-    # Create TF-IDF vectors from sentences
-    all_stopwords = list(custom_stopwords | ENGLISH_STOP_WORDS)
-    vectorizer = TfidfVectorizer(stop_words=all_stopwords)
-    tfidf_matrix = vectorizer.fit_transform(processed_sentences)
-    
-    # Run LDA to find 2 main topics
-    lda_model = LatentDirichletAllocation(n_components=2, random_state=42)
-    lda_model.fit(tfidf_matrix)
-    
-    # Get the top 5 keywords for each topic
-    topic_words = []
-    feature_names = vectorizer.get_feature_names_out()
-    
-    for topic_number, topic_weights in enumerate(lda_model.components_):
-        # Get indices of top 5 words for this topic
-        top_word_indices = topic_weights.argsort()[-5:][::-1]
-        # Convert indices to actual words
-        top_keywords = [feature_names[index] for index in top_word_indices]
-        topic_words.append({
-            "topic": topic_number + 1,
-            "keywords": top_keywords
-        })
+    topic_words = build_topics_from_text(original_text, cleaned_text)
 
     # ========== STEP 5: Create Summary ==========
     summary_result = textrank_summary(

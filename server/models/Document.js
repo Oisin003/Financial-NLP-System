@@ -8,6 +8,23 @@
 import { DataTypes } from 'sequelize';
 import { sequelize, User } from './User.js';
 
+function parseJsonField(rawValue, fallbackValue) {
+  if (!rawValue) {
+    return fallbackValue;
+  }
+
+  try {
+    return JSON.parse(rawValue);
+  } catch (_error) {
+    return fallbackValue;
+  }
+}
+
+function stringifyJsonField(value, fallbackValue) {
+  const safeValue = value ?? fallbackValue;
+  return JSON.stringify(safeValue);
+}
+
 // --- DOCUMENT TABLE DEFINITION ---
 const Document = sequelize.define('Document', {
     // Financial figures extracted by NLP microservice (array of objects)
@@ -16,11 +33,11 @@ const Document = sequelize.define('Document', {
       allowNull: true,
       get() {
         const value = this.getDataValue('financialFigures');
-        if (!value) return [];
-        return JSON.parse(value);
+        return parseJsonField(value, []);
       },
       set(value) {
-        this.setDataValue('financialFigures', JSON.stringify(value));
+        const jsonValue = stringifyJsonField(value, []);
+        this.setDataValue('financialFigures', jsonValue);
       }
     },
 
@@ -30,11 +47,11 @@ const Document = sequelize.define('Document', {
       allowNull: true,
       get() {
         const value = this.getDataValue('nlpEntities');
-        if (!value) return [];
-        return JSON.parse(value);
+        return parseJsonField(value, []);
       },
       set(value) {
-        this.setDataValue('nlpEntities', JSON.stringify(value));
+        const jsonValue = stringifyJsonField(value, []);
+        this.setDataValue('nlpEntities', jsonValue);
       }
     },
 
@@ -44,11 +61,11 @@ const Document = sequelize.define('Document', {
       allowNull: true,
       get() {
         const value = this.getDataValue('auditFlags');
-        if (!value) return [];
-        return JSON.parse(value);
+        return parseJsonField(value, []);
       },
       set(value) {
-        this.setDataValue('auditFlags', JSON.stringify(value));
+        const jsonValue = stringifyJsonField(value, []);
+        this.setDataValue('auditFlags', jsonValue);
       }
     },
   
@@ -127,13 +144,11 @@ const Document = sequelize.define('Document', {
     allowNull: true,
     get() {
       const value = this.getDataValue('nlpSummaryEvaluation');
-      if (!value) {
-        return null;
-      }
-      return JSON.parse(value);
+      return parseJsonField(value, null);
     },
     set(value) {
-      this.setDataValue('nlpSummaryEvaluation', JSON.stringify(value));
+      const jsonValue = stringifyJsonField(value, null);
+      this.setDataValue('nlpSummaryEvaluation', jsonValue);
     }
   },
 
@@ -143,13 +158,11 @@ const Document = sequelize.define('Document', {
     allowNull: true,
     get() {
       const value = this.getDataValue('nlpDecisionTrace');
-      if (!value) {
-        return null;
-      }
-      return JSON.parse(value);
+      return parseJsonField(value, null);
     },
     set(value) {
-      this.setDataValue('nlpDecisionTrace', JSON.stringify(value));
+      const jsonValue = stringifyJsonField(value, null);
+      this.setDataValue('nlpDecisionTrace', jsonValue);
     }
   },
   
@@ -161,13 +174,11 @@ const Document = sequelize.define('Document', {
     // Automatically convert between JSON string (database) and JavaScript array (code)
     get() {
       const value = this.getDataValue('processedTokens');
-      if (!value) {
-        return null;
-      }
-      return JSON.parse(value);
+      return parseJsonField(value, null);
     },
     set(value) {
-      this.setDataValue('processedTokens', JSON.stringify(value));
+      const jsonValue = stringifyJsonField(value, null);
+      this.setDataValue('processedTokens', jsonValue);
     }
   },
   
@@ -179,13 +190,11 @@ const Document = sequelize.define('Document', {
     // Automatically convert between JSON string (database) and JavaScript object (code)
     get() {
       const value = this.getDataValue('wordFrequency');
-      if (!value) {
-        return null;
-      }
-      return JSON.parse(value);
+      return parseJsonField(value, null);
     },
     set(value) {
-      this.setDataValue('wordFrequency', JSON.stringify(value));
+      const jsonValue = stringifyJsonField(value, null);
+      this.setDataValue('wordFrequency', jsonValue);
     }
   },
   
@@ -197,13 +206,11 @@ const Document = sequelize.define('Document', {
     // Automatically convert between JSON string (database) and JavaScript object (code)
     get() {
       const value = this.getDataValue('topWords');
-      if (!value) {
-        return null;
-      }
-      return JSON.parse(value);
+      return parseJsonField(value, null);
     },
     set(value) {
-      this.setDataValue('topWords', JSON.stringify(value));
+      const jsonValue = stringifyJsonField(value, null);
+      this.setDataValue('topWords', jsonValue);
     }
   },
   
