@@ -6,71 +6,62 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import API_URL from '../config';  // Backend server URL
-import AlertMessage from './AlertMessage';  // Reusable alert component
-import { useAlert } from '../hooks/useAlert';  // Custom hook for managing alerts
+import API_URL from '../config';
+import AlertMessage from './AlertMessage';
+import { useAlert } from '../hooks/useAlert';
+import LoginHeader from './login/LoginHeader';
+import LoginSubmitButton from './login/LoginSubmitButton';
 
 function Login({ onLogin }) {
-  // --- STATE MANAGEMENT ---
-  
-  // Form data: stores email and password as user types
-  const [formData, setFormData] = useState({ 
-    email: '', 
-    password: '' 
+  // Keep form values in one object (email + password)
+  const [credentials, setCredentials] = useState({
+    email: '',
+    password: ''
   });
-  
-  // Loading state: true while waiting for login response
+
+  // True while waiting for the login request to finish
   const [loading, setLoading] = useState(false);
-  
-  // Alert system: for showing error messages
+
+  // Shared alert hook used across pages
   const { message, showError, clearMessage } = useAlert();
 
-  /**
-   * Handle form input changes
-   * Updates formData state as user types
-   */
+  // Update the field that changed (email or password)
   const handleChange = (e) => {
-    setFormData({ 
-      ...formData,  // Keep other fields
-      [e.target.name]: e.target.value  // Update the field that changed
+    const { name, value } = e.target;
+
+    setCredentials({
+      ...credentials,
+      [name]: value
     });
-    clearMessage();  // Clear any error message when user starts typing
+
+    // Remove old error message when user edits input
+    clearMessage();
   };
 
-  /**
-   * Handle form submission
-   * Sends login request to backend API
-   */
+  // Send login request to backend
   const handleSubmit = async (e) => {
-    e.preventDefault();  // Prevent page refresh
-    setLoading(true);     // Show loading spinner
-    clearMessage();       // Clear any previous errors
+    e.preventDefault();
+    setLoading(true);
+    clearMessage();
 
     try {
-      // Step 1: Send POST request to login endpoint
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)  // Send email and password
+        body: JSON.stringify(credentials)
       });
 
-      // Step 2: Parse response
       const data = await response.json();
-      
-      // Step 3: Check if login failed
+
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
-      
-      // Step 4: Login successful! Call onLogin with user data and token
-      // This will update App state and redirect to dashboard
+
+      // Parent component saves user + token and handles redirect
       onLogin(data.user, data.token);
-      
     } catch (err) {
-      // Step 5: If error, show it to user
       showError(err.message);
     } finally {
-      // Always stop loading spinner (whether success or error)
       setLoading(false);
     }
   };
@@ -81,32 +72,13 @@ function Login({ onLogin }) {
         <div className="col-md-6">
           <div className="card">
             <div className="card-body">
-              
-              {/* Header Section */}
-              <div className="text-center mb-4">
-                {/* Lock Icon */}
-                <div 
-                  className="bg-primary text-white rounded-circle mb-3 mx-auto" 
-                  style={{
-                    width: '80px', 
-                    height: '80px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center'
-                  }}
-                >
-                  <i className="bi bi-shield-lock-fill fs-1"></i>
-                </div>
-                <h2>Welcome Back</h2>
-                <p className="text-muted">Login to Achilles Ltd Financial System</p>
-              </div>
+              <LoginHeader />
 
-              {/* Error Message (only shows when there's an error) */}
+              {/* Shows only when `message` exists */}
               <AlertMessage message={message} onClose={clearMessage} />
 
-              {/* Login Form */}
+              {/* Login form */}
               <form onSubmit={handleSubmit}>
-                {/* Email Input */}
                 <div className="mb-3">
                   <label htmlFor="email" className="form-label">
                     <i className="bi bi-envelope me-2"></i>Email Address
@@ -116,14 +88,13 @@ function Login({ onLogin }) {
                     className="form-control"
                     id="email"
                     name="email"
-                    value={formData.email}
+                    value={credentials.email}
                     onChange={handleChange}
                     required
                     placeholder="user@achilles.com"
                   />
                 </div>
 
-                {/* Password Input */}
                 <div className="mb-3">
                   <label htmlFor="password" className="form-label">
                     <i className="bi bi-key me-2"></i>Password
@@ -133,34 +104,15 @@ function Login({ onLogin }) {
                     className="form-control"
                     id="password"
                     name="password"
-                    value={formData.password}
+                    value={credentials.password}
                     onChange={handleChange}
                     required
                     placeholder="Enter your password"
                   />
                 </div>
 
-                {/* Submit Button */}
-                <button 
-                  type="submit" 
-                  className="btn btn-primary w-100 mb-3" 
-                  disabled={loading}  // Disable while loading
-                >
-                  {loading ? (
-                    // Show spinner while logging in
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Authenticating...
-                    </>
-                  ) : (
-                    // Show normal text when not loading
-                    <>
-                      <i className="bi bi-box-arrow-in-right me-2"></i>Sign In
-                    </>
-                  )}
-                </button>
+                <LoginSubmitButton loading={loading} />
 
-                {/* Link to Registration Page */}
                 <div className="text-center">
                   <p className="text-muted mb-0">
                     Don't have an account?{' '}

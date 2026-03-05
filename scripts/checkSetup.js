@@ -52,7 +52,7 @@ console.log('🔍 Checking dependencies...\n');
 
 for (const check of checks) {
   if (!existsSync(check.path)) {
-    console.log(`❌ Missing: ${check.name}`);
+    console.log(`Missing: ${check.name}`);
     if (check.fix) {
       needsNodeInstall.push(check);
     } else {
@@ -63,7 +63,7 @@ for (const check of checks) {
 
 // Try to auto-fix Node dependencies
 for (const item of needsNodeInstall) {
-  console.log(`\n📦 Installing ${item.name}...`);
+  console.log(`\nInstalling ${item.name}...`);
   try {
     item.fix();
   } catch (err) {
@@ -74,7 +74,7 @@ for (const item of needsNodeInstall) {
 
 if (needsSetup) {
   console.log('\n' + '='.repeat(50));
-  console.log('⚠️  Some dependencies are missing!');
+  console.log('Some dependencies are missing!');
   console.log('\nRun this command first:');
   console.log('\n  npm run setup\n');
   console.log('This will download Tika, JRE, Tesseract, and setup Python.');
@@ -82,4 +82,4 @@ if (needsSetup) {
   process.exit(1);
 }
 
-console.log('✅ All dependencies ready!\n');
+console.log('All dependencies ready!\n');

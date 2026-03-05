@@ -149,8 +149,8 @@ app.use((req, res) => {
 });
 
 // --- START SERVER ---
-// Use PORT from environment variables, or default to 5000 (matches client proxy)
-const PORT = process.env.PORT || 5000;
+// Use PORT from environment variables, or default to 8080 (matches client proxy)
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API available at http://localhost:${PORT}`);

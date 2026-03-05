@@ -66,7 +66,7 @@ const adminAuth = (req, res, next) => {
   // (req.user was set by auth middleware)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ 
-      message: 'Admin only. Access denied.' 
+      message: 'Admin only. Access denied. :(' 
     });
   }
   

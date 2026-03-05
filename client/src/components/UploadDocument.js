@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { useFileUpload } from '../hooks/useFileUpload';
-import FileDropZone from './FileDropZone';
+import FileDropZone from './documents/FileDropZone';
 import SelectedFileCard from './SelectedFileCard';
 import UploadGuidelines from './UploadGuidelines';
 import AlertMessage from './AlertMessage';

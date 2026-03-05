@@ -2,124 +2,168 @@
 
 L00172671 - Oisin Gibson
 
-## File Overview (Brief)
+## Project Overview
+Financial document management and NLP analysis system with:
+- React client for upload, document browsing, and NLP UI
+- Node/Express API for auth, document storage, and processing orchestration
+- Python NLP microservice for extraction and analysis
+- Local runtime dependencies for Java/Tika/Tesseract OCR
+
+## Tidy File Map (Readable)
+This section focuses on maintained source/config files.
+Large generated/runtime/vendor folders are summarized at the end for readability.
 
 ### Root
-- [package.json](package.json): Workspace scripts and shared deps.
-- [README.md](README.md): Project notes and references.
+- [package.json](package.json): Workspace-level scripts/dependencies.
+- [package-lock.json](package-lock.json): Workspace dependency lock file.
+- [README.md](README.md): Project documentation.
 
-### Server
-- [server/package.json](server/package.json): Server deps and scripts.
-- [server/server.js](server/server.js): Express app, DB init, routes, cleanup job.
-- [server/createAdmin.js](server/createAdmin.js): One‑off admin user creator.
+### .github
+- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot guidance for this repository.
+
+### scripts
+- [scripts/checkSetup.js](scripts/checkSetup.js): Environment/setup validation helper.
+- [scripts/setup.js](scripts/setup.js): Local setup bootstrap script.
+- [scripts/startTika.js](scripts/startTika.js): Starts Apache Tika runtime.
+
+### nlp_service
+- [nlp_service/main.py](nlp_service/main.py): Python NLP microservice entrypoint.
+- [nlp_service/requirements.txt](nlp_service/requirements.txt): Python package requirements.
+
+### server
+- [server/.env.example](server/.env.example): Example environment variables.
+- [server/package.json](server/package.json): Server scripts/dependencies.
+- [server/package-lock.json](server/package-lock.json): Server dependency lock file.
+- [server/server.js](server/server.js): Express server bootstrap and route mounting.
+- [server/createAdmin.js](server/createAdmin.js): Creates default admin user.
+- [server/pdf-diagnostic.js](server/pdf-diagnostic.js): PDF diagnostics utility.
 - [server/tika-config.xml](server/tika-config.xml): Tika OCR configuration.
+- [server/contracts/nlpResults.json](server/contracts/nlpResults.json): NLP result contract/schema.
 
-#### Server Models
-- [server/models/User.js](server/models/User.js): User schema + auth helpers.
-- [server/models/Document.js](server/models/Document.js): Document schema + NLP fields.
+#### server/models
+- [server/models/User.js](server/models/User.js): User model, auth helpers, password hashing.
+- [server/models/Document.js](server/models/Document.js): Document model and NLP-related fields.
 
-#### Server Routes
-- [server/routes/auth.js](server/routes/auth.js): Login and registration endpoints.
-- [server/routes/users.js](server/routes/users.js): Admin user management endpoints.
-- [server/routes/documents.js](server/routes/documents.js): Upload, download, NLP endpoints.
+#### server/middleware
+- [server/middleware/auth.js](server/middleware/auth.js): JWT authentication middleware.
 
-#### Server Middleware
-- [server/middleware/auth.js](server/middleware/auth.js): JWT auth guard.
+#### server/routes
+- [server/routes/auth.js](server/routes/auth.js): Authentication endpoints.
+- [server/routes/users.js](server/routes/users.js): Admin/user management endpoints.
+- [server/routes/documents.js](server/routes/documents.js): Document route aggregator.
+- [server/routes/documents/documentCrudRoutes.js](server/routes/documents/documentCrudRoutes.js): Document CRUD endpoints.
+- [server/routes/documents/uploadRoutes.js](server/routes/documents/uploadRoutes.js): Upload endpoints.
+- [server/routes/documents/nlpRoutes.js](server/routes/documents/nlpRoutes.js): NLP endpoints.
+- [server/routes/documents/nlpProcessing.js](server/routes/documents/nlpProcessing.js): NLP processing flow helpers.
+- [server/routes/documents/helpers.js](server/routes/documents/helpers.js): Shared document-route utilities.
 
-#### Server Services
-- [server/services/nlpProcessor.js](server/services/nlpProcessor.js): Text extraction + NLP pipeline.
+#### server/services
+- [server/services/nlpProcessor.js](server/services/nlpProcessor.js): Core NLP extraction/processing logic.
+- [server/services/nlpMicroservice.js](server/services/nlpMicroservice.js): Integration with Python NLP microservice.
 
-#### Server Tests
-- [server/tests/auth.test.js](server/tests/auth.test.js): Auth route tests.
+#### server/tests
+- [server/tests/auth.test.js](server/tests/auth.test.js): Authentication tests.
+- [server/tests/users.test.js](server/tests/users.test.js): User/admin route tests.
 - [server/tests/documents.test.js](server/tests/documents.test.js): Document route tests.
-- [server/tests/users.test.js](server/tests/users.test.js): User route tests.
-- [server/tests/nerAccuracy.test.js](server/tests/nerAccuracy.test.js): NER accuracy evaluation tests.
+- [server/tests/auditFlags.test.js](server/tests/auditFlags.test.js): Audit flag behavior tests.
+- [server/tests/nerAccuracy.test.js](server/tests/nerAccuracy.test.js): NER quality/accuracy tests.
 
-### NER (Named Entity Recognition) Accuracy Testing
+### client
+- [client/package.json](client/package.json): Client scripts/dependencies.
+- [client/package-lock.json](client/package-lock.json): Client dependency lock file.
 
-The `nerAccuracy.test.js` file evaluates entity extraction quality against sample financial documents with known ground truth.
-
-**Running the tests:**
-```bash
-# With Jest (requires NLP service running on port 8000)
-cd server
-npm test -- nerAccuracy.test.js
-
-# Standalone mode (detailed output)
-node server/tests/nerAccuracy.test.js --standalone
-```
-
-**Metrics measured:**
-- **Precision**: Of entities extracted, what percentage were correct?
-- **Recall**: Of known entities, what percentage were found?
-- **F1 Score**: Harmonic mean of precision and recall (overall accuracy)
-
-**Entity types evaluated:**
-| Type | Description | Example |
-|------|-------------|---------|
-| ORG | Organizations | "Apple Inc.", "FDIC" |
-| PERSON | People names | "Tim Cook", "Jamie Dimon" |
-| MONEY | Monetary values | "$394.3 billion", "£8.4 billion" |
-| DATE | Dates/periods | "January 26, 2023", "Q3 2023" |
-| GPE | Countries/cities | "California", "London" |
-| PERCENT | Percentages | "7.8%", "24.5%" |
-| CARDINAL | Numbers | "1.5 million", "30" |
-
-**Interpreting results:**
-- 🟢 **Good** (F1 ≥ 70%): Entity type is reliably extracted
-- 🟡 **Fair** (F1 ≥ 40%): Partial extraction, may need refinement
-- 🔴 **Needs Work** (F1 < 40%): Consider custom NER rules or training
-
-#### Server Contracts
-- [server/contracts/nlpResults.json](server/contracts/nlpResults.json): NLP results JSON contract.
-
-### Client
-- [client/package.json](client/package.json): Client deps and scripts.
-- [client/public/index.html](client/public/index.html): HTML entry point.
+#### client/public
+- [client/public/index.html](client/public/index.html): HTML entry page.
 - [client/public/manifest.json](client/public/manifest.json): PWA metadata.
+- [client/public/images/logo.png](client/public/images/logo.png): App logo asset.
+- [client/public/images/Outlook-ixaxuupp.jpg](client/public/images/Outlook-ixaxuupp.jpg): UI image asset.
 
-#### Client Entry
-- [client/src/index.js](client/src/index.js): React bootstrap.
-- [client/src/App.js](client/src/App.js): Routes and app layout.
-- [client/src/config.js](client/src/config.js): API base URL.
-- [client/src/index.css](client/src/index.css): Global styles.
-- [client/src/App.css](client/src/App.css): App styles.
-- [client/src/reportWebVitals.js](client/src/reportWebVitals.js): Perf reporting.
+#### client/src
+- [client/src/index.js](client/src/index.js): React app bootstrap.
+- [client/src/App.js](client/src/App.js): Route setup and top-level app layout.
+- [client/src/config.js](client/src/config.js): API URL config.
+- [client/src/index.css](client/src/index.css): Global styling.
+- [client/src/App.css](client/src/App.css): App-level styling.
+- [client/src/reportWebVitals.js](client/src/reportWebVitals.js): Web vitals helper.
 - [client/src/setupTests.js](client/src/setupTests.js): Test setup.
 
-#### Client Components
-- [client/src/components/AdminPanel.js](client/src/components/AdminPanel.js): Admin user management UI.
-- [client/src/components/AlertMessage.js](client/src/components/AlertMessage.js): Reusable alert UI.
-- [client/src/components/Dashboard.js](client/src/components/Dashboard.js): Main dashboard UI.
-- [client/src/components/DocumentCard.js](client/src/components/DocumentCard.js): Document list card.
-- [client/src/components/Documents.js](client/src/components/Documents.js): Document list page.
-- [client/src/components/DocumentStatistics.js](client/src/components/DocumentStatistics.js): Document stats UI.
-- [client/src/components/EmptyDocuments.js](client/src/components/EmptyDocuments.js): Empty state UI.
-- [client/src/components/FileDropZone.js](client/src/components/FileDropZone.js): Drag‑and‑drop upload area.
+#### client/src/components (core)
+- [client/src/components/Header.js](client/src/components/Header.js): Main navigation/header UI.
 - [client/src/components/Footer.js](client/src/components/Footer.js): Footer UI.
-- [client/src/components/Header.js](client/src/components/Header.js): Header/nav UI.
-- [client/src/components/Login.js](client/src/components/Login.js): Login form.
-- [client/src/components/Logo.js](client/src/components/Logo.js): Logo SVG.
-- [client/src/components/NLPAnalysis.js](client/src/components/NLPAnalysis.js): NLP modal container.
-- [client/src/components/NLPAnalysisView.js](client/src/components/NLPAnalysisView.js): NLP modal UI.
-- [client/src/components/NLPAnalysis.styles.js](client/src/components/NLPAnalysis.styles.js): NLP modal styles.
-- [client/src/components/Register.js](client/src/components/Register.js): Registration form.
-- [client/src/components/SelectedFileCard.js](client/src/components/SelectedFileCard.js): Selected file preview.
+- [client/src/components/Dashboard.js](client/src/components/Dashboard.js): Main dashboard page.
+- [client/src/components/Login.js](client/src/components/Login.js): Login form/page.
+- [client/src/components/Register.js](client/src/components/Register.js): Registration form/page.
+- [client/src/components/AdminPanel.js](client/src/components/AdminPanel.js): Admin user management page.
 - [client/src/components/UploadDocument.js](client/src/components/UploadDocument.js): Upload page.
-- [client/src/components/UploadGuidelines.js](client/src/components/UploadGuidelines.js): Upload tips UI.
+- [client/src/components/AlertMessage.js](client/src/components/AlertMessage.js): Shared alert/message component.
+- [client/src/components/SelectedFileCard.js](client/src/components/SelectedFileCard.js): Selected upload file summary card.
+- [client/src/components/UploadGuidelines.js](client/src/components/UploadGuidelines.js): Upload help text.
+- [client/src/components/ProcessingTimes.js](client/src/components/ProcessingTimes.js): Processing time analytics view.
+- [client/src/components/ProcessingTimesTable.js](client/src/components/ProcessingTimesTable.js): Processing times table.
+- [client/src/components/SummaryCards.js](client/src/components/SummaryCards.js): Processing metric summary cards.
+- [client/src/components/ProcessingTimes.styles.js](client/src/components/ProcessingTimes.styles.js): Processing view styles.
+- [client/src/components/ProcessingTimes.utils.js](client/src/components/ProcessingTimes.utils.js): Processing helper functions.
+- [client/src/components/About.js](client/src/components/About.js): About page.
+- [client/src/components/About.css](client/src/components/About.css): About page styles.
+- [client/src/components/PrivacyPolicy.js](client/src/components/PrivacyPolicy.js): Privacy policy page.
+- [client/src/components/TermsOfService.js](client/src/components/TermsOfService.js): Terms page.
+- [client/src/components/Logo.js](client/src/components/Logo.js): Logo component.
 
-#### Client Hooks
-- [client/src/hooks/useAlert.js](client/src/hooks/useAlert.js): Alert state hook.
-- [client/src/hooks/useDocuments.js](client/src/hooks/useDocuments.js): Documents data hook.
-- [client/src/hooks/useFileUpload.js](client/src/hooks/useFileUpload.js): Upload state hook.
+#### client/src/components/adminPanel
+- [client/src/components/adminPanel/AdminPanelHeader.js](client/src/components/adminPanel/AdminPanelHeader.js): Admin panel header/tab navigation.
+- [client/src/components/adminPanel/UserManagementTab.js](client/src/components/adminPanel/UserManagementTab.js): Users tab content wrapper.
+- [client/src/components/adminPanel/UserStatisticsCards.js](client/src/components/adminPanel/UserStatisticsCards.js): User metric cards.
+- [client/src/components/adminPanel/UserCard.js](client/src/components/adminPanel/UserCard.js): Single user card UI.
 
-#### Client Utils
-- [client/src/utils/alertUtils.js](client/src/utils/alertUtils.js): Alert helpers.
-- [client/src/utils/documentUtils.js](client/src/utils/documentUtils.js): Document helpers.
-- [client/src/utils/fileUtils.js](client/src/utils/fileUtils.js): File helpers.
+#### client/src/components/documents
+- [client/src/components/documents/Documents.js](client/src/components/documents/Documents.js): Documents page and grouping logic.
+- [client/src/components/documents/Documents.css](client/src/components/documents/Documents.css): Documents page styles.
+- [client/src/components/documents/DocumentCard.js](client/src/components/documents/DocumentCard.js): Main document card wrapper.
+- [client/src/components/documents/DocumentStatistics.js](client/src/components/documents/DocumentStatistics.js): Documents statistics section.
+- [client/src/components/documents/EmptyDocuments.js](client/src/components/documents/EmptyDocuments.js): Empty-state documents UI.
+- [client/src/components/documents/FileDropZone.js](client/src/components/documents/FileDropZone.js): Drag/drop file upload area.
 
-### Scripts
-- [scripts/startTika.js](scripts/startTika.js): Starts Tika server with config.
+#### client/src/components/documents/documentCard
+- [client/src/components/documents/documentCard/DocumentCardHeader.js](client/src/components/documents/documentCard/DocumentCardHeader.js): Document card header section.
+- [client/src/components/documents/documentCard/DocumentCardMeta.js](client/src/components/documents/documentCard/DocumentCardMeta.js): Document metadata section.
+- [client/src/components/documents/documentCard/DocumentCardRagBadge.js](client/src/components/documents/documentCard/DocumentCardRagBadge.js): RAG badge section.
+- [client/src/components/documents/documentCard/DocumentCardActions.js](client/src/components/documents/documentCard/DocumentCardActions.js): Document action buttons.
+
+#### client/src/components/login
+- [client/src/components/login/LoginHeader.js](client/src/components/login/LoginHeader.js): Login page header block.
+- [client/src/components/login/LoginSubmitButton.js](client/src/components/login/LoginSubmitButton.js): Login submit button/loading state.
+
+#### client/src/components/nlp
+- [client/src/components/nlp/NLPAnalysis.js](client/src/components/nlp/NLPAnalysis.js): NLP modal data-loading container.
+- [client/src/components/nlp/NLPAnalysisView.js](client/src/components/nlp/NLPAnalysisView.js): NLP analysis page-level renderer.
+- [client/src/components/nlp/NLPAnalysis.styles.js](client/src/components/nlp/NLPAnalysis.styles.js): NLP UI style definitions.
+- [client/src/components/nlp/NLPAnalysis.utils.js](client/src/components/nlp/NLPAnalysis.utils.js): NLP helper functions.
+- [client/src/components/nlp/NLPAnalysisContentSections.js](client/src/components/nlp/NLPAnalysisContentSections.js): NLP content section composer.
+- [client/src/components/nlp/NLPAnalysisOverviewSection.js](client/src/components/nlp/NLPAnalysisOverviewSection.js): NLP overview/statistics section.
+- [client/src/components/nlp/NLPAnalysisEntitiesSection.js](client/src/components/nlp/NLPAnalysisEntitiesSection.js): Named entity display section.
+- [client/src/components/nlp/NLPAnalysisDocumentSections.js](client/src/components/nlp/NLPAnalysisDocumentSections.js): Document text/frequency section.
+- [client/src/components/nlp/NLPAnalysisAuditPanel.js](client/src/components/nlp/NLPAnalysisAuditPanel.js): Audit flags container panel.
+- [client/src/components/nlp/NLPAnalysisAuditRagCard.js](client/src/components/nlp/NLPAnalysisAuditRagCard.js): RAG status card.
+- [client/src/components/nlp/NLPAnalysisAuditFlagList.js](client/src/components/nlp/NLPAnalysisAuditFlagList.js): Audit flag list/evidence renderer.
+
+#### client/src/hooks
+- [client/src/hooks/useAlert.js](client/src/hooks/useAlert.js): Alert-state custom hook.
+- [client/src/hooks/useDocuments.js](client/src/hooks/useDocuments.js): Document fetch/delete hook.
+- [client/src/hooks/useFileUpload.js](client/src/hooks/useFileUpload.js): File upload flow hook.
+
+#### client/src/utils
+- [client/src/utils/alertUtils.js](client/src/utils/alertUtils.js): Alert formatting/helpers.
+- [client/src/utils/documentUtils.js](client/src/utils/documentUtils.js): Document format/download/group helpers.
+- [client/src/utils/fileUtils.js](client/src/utils/fileUtils.js): File validation/upload helpers.
+
+## Large Runtime/Generated Areas (Summarized)
+These exist in the repo but are intentionally not expanded line-by-line here to keep this README readable:
+- [client/build](client/build): Built frontend artifacts and source maps.
+- [server/uploads](server/uploads): Uploaded document files.
+- [server/lib](server/lib): JAR dependencies for OCR/image support.
+- [runtimes](runtimes): Bundled Java/Tika/Tesseract runtime binaries and docs.
+- [nlp_service/venv](nlp_service/venv): Python virtual environment and installed packages.
+- [server/database.sqlite](server/database.sqlite): Local SQLite database file.
 
 =======================================================================================================================================
 Reference Material
@@ -201,5 +245,3 @@ Some scanned PDFs use JPEG2000 (JP2) images. To OCR these, add the JAI Image I/O
   - Guidance: https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
 - **file-type** - Detect file signature (magic bytes)
   - Documentation: https://www.npmjs.com/package/file-type
-
-

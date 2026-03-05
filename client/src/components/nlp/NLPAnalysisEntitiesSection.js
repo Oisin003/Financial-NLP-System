@@ -1,23 +1,27 @@
 import React from 'react';
 import { styles } from './NLPAnalysis.styles';
 
-// Renders named entities grouped by label category.
-// Grouping avoids long flat lists and improves scanability.
+// Shows named entities (people, organizations, dates, etc.) grouped by type.
 function NLPAnalysisEntitiesSection({ entities }) {
+  // Nothing to show if entities are missing or empty.
   if (!Array.isArray(entities) || entities.length === 0) {
     return null;
   }
 
-  // Build grouped entity sets keyed by entity label.
+  // Group entities by label and remove duplicates with Set.
   const entityGroups = {};
-  entities.forEach(entity => {
-    if (!entityGroups[entity.label]) {
-      entityGroups[entity.label] = new Set();
+  entities.forEach((entity) => {
+    const label = entity.label;
+    const value = entity.text;
+
+    if (!entityGroups[label]) {
+      entityGroups[label] = new Set();
     }
-    entityGroups[entity.label].add(entity.text);
+
+    entityGroups[label].add(value);
   });
 
-  // Friendly labels for known NLP entity categories.
+  // Friendlier names for NLP labels.
   const typeDescriptions = {
     ORG: 'Organizations & Companies',
     PERSON: 'People & Names',
@@ -38,7 +42,7 @@ function NLPAnalysisEntitiesSection({ entities }) {
     QUANTITY: 'Quantities'
   };
 
-  // Color accents used to distinguish common entity types.
+  // Left border color per entity type (fallback to gray if unknown).
   const borderColors = {
     ORG: '#1565c0',
     PERSON: '#c2185b',
@@ -52,7 +56,7 @@ function NLPAnalysisEntitiesSection({ entities }) {
     LAW: '#5d4037'
   };
 
-  // Sort groups by descending number of unique extracted values.
+  // Show the biggest groups first.
   const sortedTypes = Object.keys(entityGroups).sort((a, b) => entityGroups[b].size - entityGroups[a].size);
 
   return (
@@ -62,10 +66,10 @@ function NLPAnalysisEntitiesSection({ entities }) {
         Named Entities
       </h3>
       <p style={styles.description}>
-        Organizations, people, locations, dates, and other entities extracted from the document
+        Key entities extracted from the document, grouped by category
       </p>
       <div style={styles.entitiesContainer}>
-        {sortedTypes.map(entityType => {
+        {sortedTypes.map((entityType) => {
           const uniqueEntities = Array.from(entityGroups[entityType]);
           const colorStyle = styles[`entityTag${entityType}`] || styles.entityTagDefault;
 

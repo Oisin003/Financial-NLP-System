@@ -17,7 +17,7 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
 import UploadDocument from './components/UploadDocument';
-import Documents from './components/Documents';
+import Documents from './components/documents/Documents';
 import About from './components/About';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';

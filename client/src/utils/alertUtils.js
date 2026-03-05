@@ -1,4 +1,5 @@
 // Alert type definitions - makes it easy to know what types are available
+// RAG came from Helix - Blue was mine
 export const ALERT_TYPES = {
   SUCCESS: 'success',  // Green alert for successful actions
   ERROR: 'danger',     // Red alert for errors

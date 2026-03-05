@@ -3,14 +3,14 @@
  */
 
 import React from 'react';
-import { formatFileSize } from '../utils/documentUtils';
+import { formatFileSize } from '../../utils/documentUtils';
 
 function DocumentStatistics({ documents, groupedDocuments }) {
   // Calculate total storage used across all documents
   const totalSize = documents.reduce((sum, doc) => sum + doc.fileSize, 0);
 
   // Count how many different months have documents
-  const monthsCount = Object.keys(groupedDocuments).length;
+  const monthsCount = Object.keys(groupedDocuments).length; 
 
   return (
     <div className="card">

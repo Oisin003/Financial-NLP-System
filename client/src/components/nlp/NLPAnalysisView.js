@@ -5,11 +5,14 @@ import NLPAnalysisContentSections from './NLPAnalysisContentSections';
 import { buildStats, getFinancialFigures, getSummaryText } from './NLPAnalysis.utils';
 
 /**
- * Container view for NLP analysis output.
- * This file coordinates high-level state views and delegates detailed sections.
+ * Main page for NLP analysis results.
+ *
+ * Beginner note:
+ * - This component decides WHICH screen to show (loading, error, processing, or final results).
+ * - Child components render the detailed UI sections.
  */
 function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData }) {
-    // Loading state: display header and spinner while data is requested.
+    // 1) Show loading UI while we are fetching data.
     if (loading) {
         return (
             <div style={styles.container}>
@@ -25,13 +28,12 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
         );
     }
 
-    // Not-processed state: covers in-progress and failed processing outputs.
-    const isProcessed = nlpData && nlpData.nlpProcessed;
+    // 2) If NLP is not finished yet, show either an error card or a processing state.
+    const hasProcessedData = nlpData && nlpData.nlpProcessed;
 
-    if (!isProcessed) {
+    if (!hasProcessedData) {
         return (
             <div style={styles.container}>
-                {/* Header section */}
                 <div style={styles.header}>
                     <h2>NLP Analysis: {documentName}</h2>
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
@@ -59,28 +61,26 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
             </div>
         );
     }
-    // Derived values are computed once and passed to child components.
-    // This keeps presentation components focused on rendering instead of data shaping.
+
+    // 3) NLP finished successfully: prepare values once, then pass to child sections.
     const stats = buildStats(nlpData);
     const auditFlags = Array.isArray(nlpData.auditFlags) ? nlpData.auditFlags : [];
-    const documentLabel = nlpData && nlpData.documentId ? `${documentName} (#${nlpData.documentId})` : documentName;
+    const auditDocumentLabel = nlpData && nlpData.documentId
+        ? `${documentName} (#${nlpData.documentId})`
+        : documentName;
     const summaryText = getSummaryText(nlpData);
     const financialFigures = getFinancialFigures(nlpData);
 
-    // MAIN RENDER:
-    // This is what displays when data is successfully loaded and processed
+    // 4) Final results screen.
     return (
         <div style={styles.container}>
-            {/* ==================== HEADER SECTION ==================== */}
             <div style={styles.header}>
                 <h2>NLP Analysis: {documentName}</h2>
                 <div>
-                    {/* Reprocess button - lets user run NLP analysis again */}
                     <button onClick={onReprocess} style={styles.reprocessBtn}>
                         <i className="bi bi-arrow-clockwise me-2"></i>
                         Reprocess
                     </button>
-                    {/* Close button - closes this view and returns to document list */}
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
             </div>
@@ -95,12 +95,11 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
 
                 <NLPAnalysisAuditPanel
                     auditFlags={auditFlags}
-                    documentLabel={documentLabel}
+                    documentLabel={auditDocumentLabel}
                 />
             </div>
         </div>
     );
 }
 
-// Export this component so other files can import and use it
 export default NLPAnalysisView;

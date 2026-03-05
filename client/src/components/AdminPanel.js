@@ -14,41 +14,45 @@
 import React, { useState, useEffect } from 'react';
 import API_URL from '../config';
 import ProcessingTimes from './ProcessingTimes';
+import AdminPanelHeader from './adminPanel/AdminPanelHeader';
+import UserManagementTab from './adminPanel/UserManagementTab';
 
 function AdminPanel() {
+  // Store all users returned from the API
   const [users, setUsers] = useState([]);
+
+  // Show a loading spinner while data is being fetched
   const [loading, setLoading] = useState(true);
+
+  // Store any error message we want to show in the UI
   const [error, setError] = useState('');
+
+  // Controls which tab is visible
   const [activeTab, setActiveTab] = useState('users'); // 'users' or 'processing'
 
-  // CALCULATED VALUES:
-  // These values are derived from the users array for easier reading
-  
-  // Count all users
+  // ----- Calculated values (derived from `users`) -----
   const totalUserCount = users.length;
-  
-  // Count only admin users
+
   const adminCount = users.filter(function(user) {
     return user.role === 'admin';
   }).length;
-  
-  // Count regular (non-admin) users
+
   const regularUserCount = users.filter(function(user) {
     return user.role !== 'admin';
   }).length;
 
-  // Fetch users when component loads
+  // Run once on first render to get users
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Fetch all users from backend
+  // Get users from backend API
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/users`, {
         headers: {
-          'Authorization': `Bearer ${token}` // Send JWT token for authentication
+          'Authorization': `Bearer ${token}` // Send JWT auth token
         }
       });
 
@@ -65,9 +69,8 @@ function AdminPanel() {
     }
   };
 
-  // Delete a user (with confirmation)
+  // Delete one user after confirmation
   const handleDeleteUser = async (userId) => {
-    // Ask for confirmation before deleting
     if (!window.confirm('Are you sure you want to delete this user?')) {
       return;
     }
@@ -85,14 +88,14 @@ function AdminPanel() {
         throw new Error('Failed to delete user');
       }
 
-      // Remove deleted user from local state
+      // Remove deleted user from UI list immediately
       setUsers(users.filter(user => user.id !== userId));
     } catch (err) {
       setError(err.message);
     }
   };
 
-  // Show loading spinner while fetching data
+  // Show spinner while users are loading
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{minHeight: '60vh'}}>
@@ -107,207 +110,23 @@ function AdminPanel() {
     <div className="container">
       <div className="row">
         <div className="col-12">
-          {/* Admin panel */}
           <div className="card mb-3">
-            <div className="card-header bg-primary text-white">
-              <div className="d-flex justify-content-between">
-                {/* Title */}
-                <div>
-                  <h2>
-                    <i className="bi bi-shield-lock me-2"></i>
-                    Admin Panel
-                  </h2>
-                  <p className="mb-0 opacity-75 small">User Management & System Administration</p>
-                </div>
-                {/* Right side: Total users count badge */}
-                <div className="bg-light text-primary rounded px-3 py-2">
-                  <i className="bi bi-people-fill me-2"></i>
-                  <strong>{users.length}</strong> Users
-                </div>
-              </div>
-              
-              {/* Tab Navigation */}
-              <div className="mt-3">
-                <ul className="nav nav-tabs card-header-tabs">
-                  <li className="nav-item">
-                    <button 
-                      className={`nav-link ${activeTab === 'users' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('users')}
-                      style={{
-                        color: activeTab === 'users' ? '#0d6efd' : 'white',
-                        backgroundColor: activeTab === 'users' ? 'white' : 'transparent',
-                        border: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <i className="bi bi-people me-2"></i>
-                      User Management
-                    </button>
-                  </li>
-                  <li className="nav-item">
-                    <button 
-                      className={`nav-link ${activeTab === 'processing' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('processing')}
-                      style={{
-                        color: activeTab === 'processing' ? '#0d6efd' : 'white',
-                        backgroundColor: activeTab === 'processing' ? 'white' : 'transparent',
-                        border: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <i className="bi bi-clock-history me-2"></i>
-                      Processing Times
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <AdminPanelHeader
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              totalUsers={users.length}
+            />
 
             <div className="card-body">
               {activeTab === 'users' && (
-                <>
-                  {/* Error alert */}
-                  {error && (
-                <div className="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">
-                  <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
-                  <span>{error}</span>
-                  <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-              )}
-
-              {/* Statistics */}
-              <div className="row mb-3">
-                {/* Total users card */}
-                <div className="col-md-4">
-                  <div className="card bg-light h-100 hover-shadow">
-                    <div className="card-body p-4">
-                      <div className="d-flex align-items-center">
-                        <div className="bg-primary text-white rounded p-3 me-3">
-                          <i className="bi bi-people-fill fs-3"></i>
-                        </div>
-                        <div>
-                          <small className="text-muted d-block mb-1">Total Users</small>
-                          <h3 className="mb-0">{totalUserCount}</h3>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Administrators count card */}
-                <div className="col-md-4">
-                  <div className="card bg-light h-100 hover-shadow">
-                    <div className="card-body p-4">
-                      <div className="d-flex align-items-center">
-                        <div className="bg-danger text-white rounded p-3 me-3">
-                          <i className="bi bi-shield-fill-check fs-3"></i>
-                        </div>
-                        <div>
-                          <small className="text-muted d-block mb-1">Administrators</small>
-                          <h3 className="mb-0 fw-bold">{adminCount}</h3>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Regular users count card */}
-                <div className="col-md-4">
-                  <div className="card bg-light h-100 hover-shadow">
-                    <div className="card-body p-4">
-                      <div className="d-flex align-items-center">
-                        <div className="bg-success text-white rounded p-3 me-3">
-                          <i className="bi bi-person-check-fill fs-3"></i>
-                        </div>
-                        <div>
-                          <small className="text-muted d-block mb-1">Regular Users</small>
-                          <h3 className="mb-0 fw-bold">{regularUserCount}</h3>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Users */}
-              <div>
-                <h5>
-                  <i className="bi bi-people me-2"></i>
-                  User Management
-                </h5>
-              </div>
-              
-              {/* User cards */}
-              <div className="row">
-                {users.map(user => (
-                  <div key={user.id} className="col-md-6 col-lg-4">
-                    {/* User card */}
-                    <div className="card h-100 hover-shadow">
-                      <div className="card-body">
-                        {/* User avatar icon */}
-                        <div className="text-center mb-3">
-                          <div className="bg-light text-primary rounded-circle" 
-                               style={{width: '70px', height: '70px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}>
-                            <i className="bi bi-person-fill fs-1"></i>
-                          </div>
-                        </div>
-                        
-                        {/* Username */}
-                        <h6 className="text-center">{user.username}</h6>
-                        
-                        {/* Email */}
-                        <p className="text-center text-muted">
-                          <i className="bi bi-envelope me-1"></i>
-                          {user.email}
-                        </p>
-                        
-                        {/* Role */}
-                        <div className="text-center">
-                          <span className={`badge ${user.role === 'admin' ? 'bg-danger' : 'bg-primary'} px-3 py-2`}>
-                            <i className={`bi ${user.role === 'admin' ? 'bi-shield-fill-check' : 'bi-person-badge'} me-1`}></i>
-                            {user.role.toUpperCase()}
-                          </span>
-                        </div>
-                        
-                        {/* Created date */}
-                        <div className="text-center">
-                          <small className="text-muted">
-                            <i className="bi bi-calendar-check me-1"></i>
-                            Joined {new Date(user.createdAt).toLocaleDateString('en-IE', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
-                          </small>
-                        </div>
-                        
-                        {/* Delete button */}
-                        <div>
-                          <button 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="btn btn-outline-danger"
-                            title="Delete this user account"
-                          >
-                            <i className="bi bi-trash me-2"></i>
-                            Delete User
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* No users */}
-              {users.length === 0 && (
-                <div className="card bg-light">
-                  <div className="card-body text-center">
-                    <i className="bi bi-info-circle-fill fs-1 text-primary mb-3 d-block"></i>
-                    <p className="mb-0">No users found in the system.</p>
-                  </div>
-                </div>
-              )}
-                </>
+                <UserManagementTab
+                  users={users}
+                  error={error}
+                  totalUserCount={totalUserCount}
+                  adminCount={adminCount}
+                  regularUserCount={regularUserCount}
+                  onDeleteUser={handleDeleteUser}
+                />
               )}
 
               {activeTab === 'processing' && (

@@ -71,9 +71,9 @@ function download(url, dest) {
 }
 
 async function setupTika() {
-  console.log('\n📦 Setting up Apache Tika...');
+  console.log('\nSetting up Apache Tika...');
   if (DOWNLOADS.tika.check()) {
-    console.log('  ✅ Tika already installed');
+    console.log('  Tika already installed');
     return;
   }
   
@@ -81,17 +81,17 @@ async function setupTika() {
   
   try {
     execSync(`curl -L --progress-bar -o "${DOWNLOADS.tika.dest}" "${DOWNLOADS.tika.url}"`, { stdio: 'inherit' });
-    console.log('  ✅ Tika installed');
+    console.log('Tika installed');
   } catch (err) {
-    console.error('  ❌ Failed to download Tika. Please download manually from:');
+    console.error('Failed to download Tika. Please download manually from:');
     console.error(`     ${DOWNLOADS.tika.url}`);
   }
 }
 
 async function setupJRE() {
-  console.log('\n☕ Setting up Java Runtime...');
+  console.log('\n Setting up Java Runtime...');
   if (DOWNLOADS.jre.check()) {
-    console.log('  ✅ JRE already installed');
+    console.log('JRE already installed');
     return;
   }
   
@@ -115,17 +115,17 @@ async function setupJRE() {
     }
     
     unlinkSync(DOWNLOADS.jre.dest);
-    console.log('  ✅ JRE installed');
+    console.log('JRE installed');
   } catch (err) {
-    console.error('  ❌ Failed to setup JRE. Please download manually from:');
+    console.error('Failed to setup JRE. Please download manually from:');
     console.error('     https://adoptium.net/temurin/releases/');
   }
 }
 
 async function setupTesseract() {
-  console.log('\n🔍 Setting up Tesseract OCR...');
+  console.log('\n Setting up Tesseract OCR...');
   if (DOWNLOADS.tesseract.check()) {
-    console.log('  ✅ Tesseract already installed');
+    console.log('Tesseract already installed');
     return;
   }
   
@@ -139,34 +139,34 @@ async function setupTesseract() {
     await new Promise(resolve => setTimeout(resolve, 5000));
     
     if (DOWNLOADS.tesseract.check()) {
-      console.log('  ✅ Tesseract installed');
+      console.log('   Tesseract installed');
     } else {
-      console.log('  ⚠️  Silent install may have failed. Please run the installer manually:');
+      console.log('    Silent install may have failed. Please run the installer manually:');
       console.log(`     ${DOWNLOADS.tesseract.dest}`);
       console.log(`     Install to: ${path.join(runtimesDir, 'tesseract')}`);
     }
   } catch (err) {
-    console.error('  ❌ Failed to setup Tesseract. Please download manually from:');
+    console.error('   Failed to setup Tesseract. Please download manually from:');
     console.error('     https://github.com/UB-Mannheim/tesseract/wiki');
   }
 }
 
 async function setupPythonVenv() {
-  console.log('\n🐍 Setting up Python environment...');
+  console.log('\n Setting up Python environment...');
   const venvPath = path.join(rootDir, 'nlp_service', 'venv');
   const requirementsPath = path.join(rootDir, 'nlp_service', 'requirements.txt');
   const pythonExe = path.join(venvPath, 'Scripts', 'python.exe');
   const pipExe = path.join(venvPath, 'Scripts', 'pip.exe');
   
   if (existsSync(pythonExe)) {
-    console.log('  ✅ Python venv already exists');
+    console.log('   Python venv already exists');
   } else {
     try {
       console.log('  Creating virtual environment...');
       execSync(`python -m venv "${venvPath}"`, { cwd: path.join(rootDir, 'nlp_service'), stdio: 'inherit' });
-      console.log('  ✅ Virtual environment created');
+      console.log('   Virtual environment created');
     } catch (err) {
-      console.error('  ❌ Failed to create venv. Please ensure Python is installed.');
+      console.error('   Failed to create venv. Please ensure Python is installed.');
       return;
     }
   }
@@ -186,16 +186,16 @@ async function setupPythonVenv() {
       stdio: 'inherit' 
     });
     
-    console.log('  ✅ Python environment ready');
+    console.log('   Python environment ready');
   } catch (err) {
-    console.error('  ❌ Failed to install Python dependencies.');
+    console.error('   Failed to install Python dependencies.');
     console.error('     Run manually: cd nlp_service && venv\\Scripts\\pip install -r requirements.txt');
     console.error('     Then: venv\\Scripts\\python -m spacy download en_core_web_sm');
   }
 }
 
 async function setupNodeModules() {
-  console.log('\n📦 Installing Node.js dependencies...');
+  console.log('\n Installing Node.js dependencies...');
   
   try {
     if (!existsSync(path.join(rootDir, 'node_modules'))) {
@@ -207,14 +207,14 @@ async function setupNodeModules() {
     if (!existsSync(path.join(rootDir, 'client', 'node_modules'))) {
       execSync('npm install', { cwd: path.join(rootDir, 'client'), stdio: 'inherit' });
     }
-    console.log('  ✅ Node dependencies installed');
+    console.log('   Node dependencies installed');
   } catch (err) {
-    console.error('  ❌ Failed to install Node dependencies');
+    console.error('   Failed to install Node dependencies');
   }
 }
 
 async function main() {
-  console.log('🚀 Financial NLP System - Setup\n');
+  console.log(' Financial NLP System - Setup\n');
   console.log('This script will download and configure all required components.\n');
   
   mkdirSync(runtimesDir, { recursive: true });
@@ -226,7 +226,7 @@ async function main() {
   await setupNodeModules();
   
   console.log('\n' + '='.repeat(50));
-  console.log('✅ Setup complete!\n');
+  console.log(' Setup complete!\n');
   console.log('Run the application with: npm start');
   console.log('='.repeat(50));
 }
