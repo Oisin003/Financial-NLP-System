@@ -14,6 +14,23 @@
 
 import fetch from 'node-fetch';
 
+/**
+ * Helper: compute the average of numeric values in an array.
+ * Returns 0 when the array is empty to avoid division errors.
+ */
+function average(values) {
+  if (!values || values.length === 0) {
+    return 0;
+  }
+
+  let total = 0;
+  for (let i = 0; i < values.length; i++) {
+    total += values[i];
+  }
+
+  return total / values.length;
+}
+
 // ==========================================
 // SAMPLE FINANCIAL DOCUMENTS WITH GROUND TRUTH
 // ==========================================
@@ -115,6 +132,7 @@ function normalizeEntity(text) {
  * @returns {Object} - { precision, recall, f1 }
  */
 function calculateMetrics(extracted, expected) {
+  // Normalize both sets so matching is case-insensitive and whitespace-safe.
   const extractedNorm = new Set([...extracted].map(normalizeEntity));
   const expectedNorm = new Set([...expected].map(normalizeEntity));
   
@@ -178,6 +196,8 @@ async function callNERService(text) {
  * @returns {Object} - Map of label -> array of entity texts
  */
 function groupEntitiesByLabel(entities) {
+  // Build an object like:
+  // { ORG: ['Apple Inc.'], PERSON: ['Tim Cook'] }
   const grouped = {};
   for (const entity of entities) {
     if (!grouped[entity.label]) {
@@ -206,7 +226,7 @@ describe('NER Accuracy Tests', () => {
     const extractedEntities = await callNERService(testCase.text);
     const extractedGrouped = groupEntitiesByLabel(extractedEntities);
     
-    // Calculate metrics for each entity type
+    // Calculate metrics for each entity type (ORG, PERSON, MONEY, etc.)
     const typeResults = {};
     const allEntityTypes = new Set([
       ...Object.keys(testCase.expectedEntities),
@@ -222,7 +242,8 @@ describe('NER Accuracy Tests', () => {
       }
     }
     
-    // Calculate overall metrics (all entity types combined)
+    // Calculate overall metrics by flattening entities into "LABEL:text" pairs.
+    // This gives one global score per document.
     const allExtracted = new Set(extractedEntities.map(e => `${e.label}:${e.text}`));
     const allExpected = new Set();
     for (const [type, entities] of Object.entries(testCase.expectedEntities)) {
@@ -232,7 +253,7 @@ describe('NER Accuracy Tests', () => {
     }
     const overallMetrics = calculateMetrics(allExtracted, allExpected);
     
-    // Store results for summary
+    // Save per-document results so the final summary test can aggregate all documents.
     allResults.push({
       name: testCase.name,
       typeResults,
@@ -242,11 +263,11 @@ describe('NER Accuracy Tests', () => {
     });
     
     // Log detailed results
-    console.log(`\n📄 ${testCase.name}`);
-    console.log('─'.repeat(50));
+    console.log(`\n[INFO] ${testCase.name}`);
+    console.log('-'.repeat(50));
     
     for (const [type, metrics] of Object.entries(typeResults)) {
-      const status = metrics.recall >= 0.5 ? '✓' : '✗';
+      const status = metrics.recall >= 0.5 ? '[success]' : '[danger]';
       console.log(`  ${status} ${type.padEnd(10)} | P: ${metrics.precision.toFixed(2)} | R: ${metrics.recall.toFixed(2)} | F1: ${metrics.f1.toFixed(2)}`);
       
       // Show what was found vs expected
@@ -260,7 +281,7 @@ describe('NER Accuracy Tests', () => {
       }
     }
     
-    console.log('─'.repeat(50));
+    console.log('-'.repeat(50));
     console.log(`  OVERALL | P: ${overallMetrics.precision.toFixed(2)} | R: ${overallMetrics.recall.toFixed(2)} | F1: ${overallMetrics.f1.toFixed(2)}`);
     
     // Assertions - document should have reasonable entity extraction
@@ -270,6 +291,7 @@ describe('NER Accuracy Tests', () => {
 
 
   // Final summary test
+  // This runs after per-document tests and prints a compact report.
   test('Overall Accuracy Summary', () => {
     if (allResults.length === 0) {
       console.log('No test results to summarize');
@@ -277,23 +299,24 @@ describe('NER Accuracy Tests', () => {
     }
     
     console.log('\n\n' + '='.repeat(60));
-    console.log('📊 NER ACCURACY SUMMARY REPORT');
+    console.log('NER ACCURACY SUMMARY REPORT');
     console.log('='.repeat(60));
     
-    // Calculate average metrics across all test cases
-    let totalPrecision = 0;
-    let totalRecall = 0;
-    let totalF1 = 0;
-    
+    // Calculate average metrics across all test cases.
+    // We keep this explicit so each step is easy to follow.
+    const precisionValues = [];
+    const recallValues = [];
+    const f1Values = [];
+
     for (const result of allResults) {
-      totalPrecision += result.overall.precision;
-      totalRecall += result.overall.recall;
-      totalF1 += result.overall.f1;
+      precisionValues.push(result.overall.precision);
+      recallValues.push(result.overall.recall);
+      f1Values.push(result.overall.f1);
     }
-    
-    const avgPrecision = totalPrecision / allResults.length;
-    const avgRecall = totalRecall / allResults.length;
-    const avgF1 = totalF1 / allResults.length;
+
+    const avgPrecision = average(precisionValues);
+    const avgRecall = average(recallValues);
+    const avgF1 = average(f1Values);
     
     console.log(`\nTest Documents: ${allResults.length}`);
     console.log(`Average Precision: ${(avgPrecision * 100).toFixed(1)}%`);
@@ -301,8 +324,8 @@ describe('NER Accuracy Tests', () => {
     console.log(`Average F1 Score: ${(avgF1 * 100).toFixed(1)}%`);
     
     // Per-type breakdown
-    console.log('\n📋 Per-Entity-Type Performance:');
-    console.log('─'.repeat(50));
+    console.log('\nPer-Entity-Type Performance:');
+    console.log('-'.repeat(50));
     
     const typeAggregates = {};
     for (const result of allResults) {
@@ -319,19 +342,30 @@ describe('NER Accuracy Tests', () => {
     const sortedTypes = Object.entries(typeAggregates).sort((a, b) => b[1].f1.length - a[1].f1.length);
     
     for (const [type, metrics] of sortedTypes) {
-      const avgP = metrics.precision.reduce((a, b) => a + b, 0) / metrics.precision.length;
-      const avgR = metrics.recall.reduce((a, b) => a + b, 0) / metrics.recall.length;
-      const avgF = metrics.f1.reduce((a, b) => a + b, 0) / metrics.f1.length;
-      const grade = avgF >= 0.7 ? '🟢' : avgF >= 0.4 ? '🟡' : '🔴';
+      const avgP = average(metrics.precision);
+      const avgR = average(metrics.recall);
+      const avgF = average(metrics.f1);
+      const grade = avgF >= 0.7 ? '[success]' : avgF >= 0.4 ? '[warning]' : '[danger]';
       
       console.log(`${grade} ${type.padEnd(12)} | P: ${(avgP * 100).toFixed(0).padStart(3)}% | R: ${(avgR * 100).toFixed(0).padStart(3)}% | F1: ${(avgF * 100).toFixed(0).padStart(3)}% (n=${metrics.f1.length})`);
     }
     
     console.log('\n' + '='.repeat(60));
-    console.log('Legend: 🟢 Good (F1≥70%) | 🟡 Fair (F1≥40%) | 🔴 Needs Work (F1<40%)');
+    console.log('Legend: [success] Good (F1>=70%) | [warning] Fair (F1>=40%) | [danger] Needs Work (F1<40%)');
     console.log('='.repeat(60) + '\n');
     
     // Store summary for documentation
+    // Build a documentation-friendly JSON summary.
+    // This is useful for saving in reports or PR notes.
+    const perTypeMetrics = {};
+    for (const [type, m] of sortedTypes) {
+      perTypeMetrics[type] = {
+        precision: Math.round(average(m.precision) * 100),
+        recall: Math.round(average(m.recall) * 100),
+        f1: Math.round(average(m.f1) * 100)
+      };
+    }
+
     const summary = {
       timestamp: new Date().toISOString(),
       testCount: allResults.length,
@@ -340,19 +374,10 @@ describe('NER Accuracy Tests', () => {
         recall: Math.round(avgRecall * 100),
         f1: Math.round(avgF1 * 100)
       },
-      perTypeMetrics: Object.fromEntries(
-        sortedTypes.map(([type, m]) => [
-          type,
-          {
-            precision: Math.round((m.precision.reduce((a, b) => a + b, 0) / m.precision.length) * 100),
-            recall: Math.round((m.recall.reduce((a, b) => a + b, 0) / m.recall.length) * 100),
-            f1: Math.round((m.f1.reduce((a, b) => a + b, 0) / m.f1.length) * 100)
-          }
-        ])
-      )
+      perTypeMetrics
     };
     
-    console.log('📁 Summary JSON (for documentation):');
+    console.log('Summary JSON (for documentation):');
     console.log(JSON.stringify(summary, null, 2));
     
     // Assertions for overall quality
@@ -370,7 +395,7 @@ describe('NER Accuracy Tests', () => {
  * Usage: node server/tests/nerAccuracy.test.js --standalone
  */
 async function runStandalone() {
-  console.log('🔬 NER Accuracy Test - Standalone Mode\n');
+  console.log('[INFO] NER Accuracy Test - Standalone Mode\n');
   
   const results = [];
   
@@ -393,7 +418,7 @@ async function runStandalone() {
       const metrics = calculateMetrics(allExtracted, allExpected);
       results.push({ name: testCase.name, ...metrics });
       
-      console.log(`  ✓ Precision: ${(metrics.precision * 100).toFixed(1)}% | Recall: ${(metrics.recall * 100).toFixed(1)}% | F1: ${(metrics.f1 * 100).toFixed(1)}%`);
+      console.log(`  [success] Precision: ${(metrics.precision * 100).toFixed(1)}% | Recall: ${(metrics.recall * 100).toFixed(1)}% | F1: ${(metrics.f1 * 100).toFixed(1)}%`);
       
       // Show detailed comparison
       console.log('\n  Extracted entities:');
@@ -407,17 +432,28 @@ async function runStandalone() {
       console.log('');
       
     } catch (error) {
-      console.log(`  ✗ Error: ${error.message}`);
+      console.log(`  [danger] Error: ${error.message}`);
       results.push({ name: testCase.name, error: error.message });
     }
   }
   
   // Summary
+  // If at least one test case succeeded, print overall averages.
   const validResults = results.filter(r => !r.error);
   if (validResults.length > 0) {
-    const avgP = validResults.reduce((sum, r) => sum + r.precision, 0) / validResults.length;
-    const avgR = validResults.reduce((sum, r) => sum + r.recall, 0) / validResults.length;
-    const avgF1 = validResults.reduce((sum, r) => sum + r.f1, 0) / validResults.length;
+    const precisionValues = [];
+    const recallValues = [];
+    const f1Values = [];
+
+    for (const result of validResults) {
+      precisionValues.push(result.precision);
+      recallValues.push(result.recall);
+      f1Values.push(result.f1);
+    }
+
+    const avgP = average(precisionValues);
+    const avgR = average(recallValues);
+    const avgF1 = average(f1Values);
     
     console.log('\n' + '='.repeat(50));
     console.log('SUMMARY');

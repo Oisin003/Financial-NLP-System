@@ -1,0 +1,7 @@
+variant,precision,recall,f1,rag_accuracy,tp,fp,fn,duration_ms,description
+baseline,1,1,1,1,9,0,0,41,"All audit rules enabled (current system behavior)."
+no_debt_burden,1,0.8889,0.9412,1,8,0,1,1,"Debt burden rule disabled."
+no_gross_margin,1,0.8889,0.9412,1,8,0,1,0,"Gross margin deterioration rule disabled."
+no_going_concern,1,0.8889,0.9412,1,8,0,1,0,"Going-concern wording rule disabled."
+no_rag,1,0.4444,0.6154,0,4,0,5,1,"RAG status flag disabled."
+no_extra_rules,1,0.6667,0.8,1,6,0,3,0,"Only RAG + incomplete-data remain enabled."

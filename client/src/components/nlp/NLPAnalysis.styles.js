@@ -211,6 +211,21 @@ export const styles = {
     fontSize: '12px',
     cursor: 'pointer'
   },
+  fullDetailsBtn: {
+    marginTop: '12px',
+    background: '#0d6efd',
+    color: 'white',
+    border: 'none',
+    padding: '10px 14px',
+    borderRadius: '6px',
+    cursor: 'pointer'
+  },
+  detailCard: {
+    background: '#ffffff',
+    border: '1px solid #dbe2ea',
+    borderRadius: '8px',
+    padding: '16px'
+  },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',

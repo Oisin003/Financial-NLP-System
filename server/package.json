@@ -8,7 +8,8 @@
     "start": "nodemon server.js",
     "start:prod": "node server.js",
     "create-admin": "node createAdmin.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit",
+    "ablation": "node scripts/runAblationStudy.js"
   },
   "jest": {
     "testEnvironment": "node",

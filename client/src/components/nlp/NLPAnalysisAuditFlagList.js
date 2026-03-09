@@ -6,7 +6,8 @@ function NLPAnalysisAuditFlagList({
   flagsToRender,
   emptyMessage,
   expandedAuditFlags,
-  onToggleAuditEvidence
+  onToggleAuditEvidence,
+  expandAllEvidence = false
 }) {
   if (!flagsToRender || flagsToRender.length === 0) {
     return <p style={styles.description}>{emptyMessage}</p>;
@@ -18,7 +19,7 @@ function NLPAnalysisAuditFlagList({
         const colors = getSeverityColors(flag.severity);
         const evidenceItems = formatAuditEvidenceItems(flag);
         const flagKey = `${flag.id || 'flag'}-${index}`;
-        const isExpanded = !!expandedAuditFlags[flagKey];
+        const isExpanded = expandAllEvidence || !!expandedAuditFlags[flagKey];
 
         return (
           <div
@@ -49,13 +50,15 @@ function NLPAnalysisAuditFlagList({
 
             {evidenceItems.length > 0 && (
               <div style={styles.auditEvidenceWrapper}>
-                <button
-                  type="button"
-                  style={styles.auditEvidenceToggleBtn}
-                  onClick={() => onToggleAuditEvidence(flagKey)}
-                >
-                  {isExpanded ? 'Hide details' : 'Why flagged?'}
-                </button>
+                {!expandAllEvidence && (
+                  <button
+                    type="button"
+                    style={styles.auditEvidenceToggleBtn}
+                    onClick={() => onToggleAuditEvidence(flagKey)}
+                  >
+                    {isExpanded ? 'Hide details' : 'Why flagged?'}
+                  </button>
+                )}
 
                 {isExpanded && (
                   <ul style={styles.auditEvidenceList}>

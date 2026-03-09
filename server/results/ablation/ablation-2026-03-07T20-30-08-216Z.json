@@ -1,0 +1,546 @@
+{
+  "createdAt": "2026-03-07T20:30:08.217Z",
+  "datasetSize": 6,
+  "targetRuleIds": [
+    "rag-status",
+    "incomplete-data",
+    "debt-burden",
+    "gross-margin-deterioration",
+    "going-concern-risk"
+  ],
+  "variants": [
+    {
+      "id": "baseline",
+      "description": "All audit rules enabled (current system behavior).",
+      "options": {},
+      "metrics": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "ragAccuracy": 1,
+        "tp": 9,
+        "fp": 0,
+        "fn": 0,
+        "durationMs": 17
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": "red"
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    },
+    {
+      "id": "no_debt_burden",
+      "description": "Debt burden rule disabled.",
+      "options": {
+        "enableDebtBurdenRule": false
+      },
+      "metrics": {
+        "precision": 1,
+        "recall": 0.8889,
+        "f1": 0.9412,
+        "ragAccuracy": 1,
+        "tp": 8,
+        "fp": 0,
+        "fn": 1,
+        "durationMs": 1
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": "red"
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    },
+    {
+      "id": "no_gross_margin",
+      "description": "Gross margin deterioration rule disabled.",
+      "options": {
+        "enableGrossMarginRule": false
+      },
+      "metrics": {
+        "precision": 1,
+        "recall": 0.8889,
+        "f1": 0.9412,
+        "ragAccuracy": 1,
+        "tp": 8,
+        "fp": 0,
+        "fn": 1,
+        "durationMs": 0
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": "red"
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    },
+    {
+      "id": "no_going_concern",
+      "description": "Going-concern wording rule disabled.",
+      "options": {
+        "enableGoingConcernRule": false
+      },
+      "metrics": {
+        "precision": 1,
+        "recall": 0.8889,
+        "f1": 0.9412,
+        "ragAccuracy": 1,
+        "tp": 8,
+        "fp": 0,
+        "fn": 1,
+        "durationMs": 0
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": "red"
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    },
+    {
+      "id": "no_rag",
+      "description": "RAG status flag disabled.",
+      "options": {
+        "enableRagRule": false
+      },
+      "metrics": {
+        "precision": 1,
+        "recall": 0.4444,
+        "f1": 0.6154,
+        "ragAccuracy": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 5,
+        "durationMs": 0
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": null
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": null
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "debt-burden"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": null
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "gross-margin-deterioration"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": null
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "going-concern-risk"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": null
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    },
+    {
+      "id": "no_extra_rules",
+      "description": "Only RAG + incomplete-data remain enabled.",
+      "options": {
+        "enableDebtBurdenRule": false,
+        "enableGrossMarginRule": false,
+        "enableGoingConcernRule": false
+      },
+      "metrics": {
+        "precision": 1,
+        "recall": 0.6667,
+        "f1": 0.8,
+        "ragAccuracy": 1,
+        "tp": 6,
+        "fp": 0,
+        "fn": 3,
+        "durationMs": 0
+      },
+      "cases": [
+        {
+          "caseId": "healthy_green",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "turnover_red",
+          "expectedRuleIds": [
+            "rag-status"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "red",
+          "predictedRagStatus": "red"
+        },
+        {
+          "caseId": "debt_burden_amber",
+          "expectedRuleIds": [
+            "rag-status",
+            "debt-burden"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "gross_margin_red",
+          "expectedRuleIds": [
+            "rag-status",
+            "gross-margin-deterioration"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "going_concern_high",
+          "expectedRuleIds": [
+            "rag-status",
+            "going-concern-risk"
+          ],
+          "predictedRuleIds": [
+            "rag-status"
+          ],
+          "expectedRagStatus": "green",
+          "predictedRagStatus": "green"
+        },
+        {
+          "caseId": "incomplete_data",
+          "expectedRuleIds": [
+            "incomplete-data"
+          ],
+          "predictedRuleIds": [
+            "incomplete-data"
+          ],
+          "expectedRagStatus": null,
+          "predictedRagStatus": null
+        }
+      ]
+    }
+  ]
+}

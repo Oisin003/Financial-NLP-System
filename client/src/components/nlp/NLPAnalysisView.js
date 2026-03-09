@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { styles } from './NLPAnalysis.styles';
 import NLPAnalysisAuditPanel from './NLPAnalysisAuditPanel';
 import NLPAnalysisContentSections from './NLPAnalysisContentSections';
@@ -12,6 +12,8 @@ import { buildStats, getFinancialFigures, getSummaryText } from './NLPAnalysis.u
  * - Child components render the detailed UI sections.
  */
 function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData }) {
+    const [showFullDetails, setShowFullDetails] = useState(false);
+
     // 1) Show loading UI while we are fetching data.
     if (loading) {
         return (
@@ -86,17 +88,41 @@ function NLPAnalysisView({ documentName, onClose, onReprocess, loading, nlpData 
             </div>
 
             <div style={styles.content}>
-                <NLPAnalysisContentSections
-                    nlpData={nlpData}
-                    stats={stats}
-                    summaryText={summaryText}
-                    financialFigures={financialFigures}
-                />
-
                 <NLPAnalysisAuditPanel
                     auditFlags={auditFlags}
                     documentLabel={auditDocumentLabel}
+                    startOpen={true}
+                    hidePanelToggle={true}
+                    defaultExpandEvidence={true}
                 />
+
+                <div style={styles.section}>
+                    <h3>
+                        <i className="bi bi-layout-text-sidebar-reverse me-2"></i>
+                        Full Analysis Data
+                    </h3>
+                    <p style={styles.description}>
+                        Use this for the complete statistics, entities, and token-level processing details.
+                    </p>
+                    <button
+                        type="button"
+                        style={styles.fullDetailsBtn}
+                        onClick={() => setShowFullDetails((prev) => !prev)}
+                    >
+                        {showFullDetails ? 'Hide full analysis details' : 'Show full analysis details'}
+                    </button>
+                </div>
+
+                {showFullDetails && (
+                    <div style={styles.detailCard}>
+                        <NLPAnalysisContentSections
+                            nlpData={nlpData}
+                            stats={stats}
+                            summaryText={summaryText}
+                            financialFigures={financialFigures}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

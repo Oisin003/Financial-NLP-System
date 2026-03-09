@@ -10,7 +10,8 @@
     "client": "cd client && npm start",
     "tika": "node scripts/startTika.js",
     "nlp": "cd nlp_service && venv\\Scripts\\python.exe -m uvicorn main:app --reload",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "ablation": "npm --prefix server run ablation"
   },
   "license": "ISC",
   "dependencies": {

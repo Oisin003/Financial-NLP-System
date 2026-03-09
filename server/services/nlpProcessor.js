@@ -431,6 +431,29 @@ function getRagSeverity(status) {
   return 'low';
 }
 
+// Convert env-style values into booleans.
+// Accepted truthy values: "1", "true", "yes", "on".
+function parseBooleanFlag(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+// Resolve audit rule toggles using (1) explicit options, then (2) env vars, then defaults.
+// Defaults preserve current production behavior.
+function getAuditAblationConfig(options = {}) {
+  return {
+    enableRagRule: options.enableRagRule ?? parseBooleanFlag(process.env.ABLATION_ENABLE_RAG_RULE, true),
+    enableIncompleteDataRule: options.enableIncompleteDataRule ?? parseBooleanFlag(process.env.ABLATION_ENABLE_INCOMPLETE_DATA_RULE, true),
+    enableDebtBurdenRule: options.enableDebtBurdenRule ?? parseBooleanFlag(process.env.ABLATION_ENABLE_DEBT_BURDEN_RULE, true),
+    enableGrossMarginRule: options.enableGrossMarginRule ?? parseBooleanFlag(process.env.ABLATION_ENABLE_GROSS_MARGIN_RULE, true),
+    enableGoingConcernRule: options.enableGoingConcernRule ?? parseBooleanFlag(process.env.ABLATION_ENABLE_GOING_CONCERN_RULE, true)
+  };
+}
+
 function determineRagResult(turnoverValue, profitValue, netAssetsValue) {
   const hasTurnover = turnoverValue !== null;
   const hasProfit = profitValue !== null;
@@ -478,7 +501,8 @@ function determineRagResult(turnoverValue, profitValue, netAssetsValue) {
   };
 }
 
-export function analyzeAuditFlags(text) {
+export function analyzeAuditFlags(text, options = {}) {
+  const config = getAuditAblationConfig(options);
   const flags = [];
   const lines = normalizeTextLines(text);
   if (lines.length === 0) {
@@ -558,7 +582,7 @@ export function analyzeAuditFlags(text) {
   // BUILD RAG FLAG
   // ==========================================
 
-  if (ragStatus !== 'unknown') {
+  if (config.enableRagRule && ragStatus !== 'unknown') {
     const ragSeverity = getRagSeverity(ragStatus);
 
     flags.push({
@@ -576,7 +600,7 @@ export function analyzeAuditFlags(text) {
         ragStatus
       }
     });
-  } else {
+  } else if (config.enableIncompleteDataRule) {
     // Missing data - couldn't determine RAG status
     const missingMetrics = [];
     if (!hasTurnover) missingMetrics.push('turnover');
@@ -606,7 +630,7 @@ export function analyzeAuditFlags(text) {
   // ==========================================
   // Red   = borrowings / turnover >= 1.0
   // Amber = borrowings / turnover >= 0.7
-  if (borrowingsValue !== null && hasTurnover && Math.abs(turnoverValue) > 0) {
+  if (config.enableDebtBurdenRule && borrowingsValue !== null && hasTurnover && Math.abs(turnoverValue) > 0) {
     const debtRatio = Math.abs(borrowingsValue) / Math.abs(turnoverValue);
     const debtPct = (debtRatio * 100).toFixed(1);
 
@@ -647,7 +671,7 @@ export function analyzeAuditFlags(text) {
   // Red   = decline >= 10 percentage points
   // Amber = decline >= 5 percentage points
   const grossMarginValues = extractGrossMarginPercents(lines);
-  if (grossMarginValues.length >= 2) {
+  if (config.enableGrossMarginRule && grossMarginValues.length >= 2) {
     const latestMargin = grossMarginValues[0].value;
     const priorMargin = grossMarginValues[1].value;
     const change = latestMargin - priorMargin;
@@ -687,7 +711,7 @@ export function analyzeAuditFlags(text) {
   const textLower = lines.join(' ').toLowerCase();
   const hasGoingConcern = textLower.includes('going concern');
 
-  if (hasGoingConcern) {
+  if (config.enableGoingConcernRule && hasGoingConcern) {
     const severePhrases = [
       'material uncertainty',
       'significant doubt',
