@@ -18,9 +18,6 @@ Large generated/runtime/vendor folders are summarized at the end for readability
 - [package-lock.json](package-lock.json): Workspace dependency lock file.
 - [README.md](README.md): Project documentation.
 
-### .github
-- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot guidance for this repository.
-
 ### scripts
 - [scripts/checkSetup.js](scripts/checkSetup.js): Environment/setup validation helper.
 - [scripts/setup.js](scripts/setup.js): Local setup bootstrap script.
