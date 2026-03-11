@@ -10,7 +10,7 @@ import React from 'react';
 function Logo() {
   return (
     <img 
-      src="/images/logo.png" 
+      src="/images/achilles-ltd-logo.png" 
       alt="Achilles Ltd Logo" 
       style={{ width: '50px', height: '50px', objectFit: 'contain' }}
     />

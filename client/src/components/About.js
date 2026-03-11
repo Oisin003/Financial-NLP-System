@@ -11,7 +11,7 @@ function About() {
 				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
-							src="/images/logo.png"
+							src="/images/achilles-ltd-logo.png"
 							alt="Oisin Gibson"
 							className="about-card-image"
 						/>
@@ -36,7 +36,7 @@ function About() {
 				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
-							src="/images/Outlook-ixaxuupp.jpg"
+							src="/images/achilles-ltd-logo.png"
 							alt="Achilles Ltd logo"
 							className="about-card-image"
 						/>
@@ -59,7 +59,7 @@ function About() {
 				<div className="col-12 col-md-6">
 					<div className="card h-100">
 						<img
-							src="/images/logo.png"
+							src="/images/achilles-ltd-logo.png"
 							alt="Achilles Ltd logo"
 							className="about-card-image"
 						/>
