@@ -2,6 +2,8 @@ node_modules/
 .env
 .DS_Store
 *.log
+# SQLite database - excluded from git, recreated by seed script on first run
+server/database.sqlite
 # Local runtimes (Tika, JRE, Tesseract) - binaries too large for git
 runtimes/*
 !runtimes/README.md

@@ -8,7 +8,9 @@
     </parser>
     <parser class="org.apache.tika.parser.pdf.PDFParser">
       <params>
-        <param name="ocrStrategy" type="string">ocr_and_text</param>
+        <!-- Default to no_ocr so Tika doesn't require Tesseract for every request.
+             OCR is requested per-call via the X-Tika-PDFOcrStrategy header. -->
+        <param name="ocrStrategy" type="string">no_ocr</param>
         <param name="extractInlineImages" type="bool">true</param>
       </params>
     </parser>

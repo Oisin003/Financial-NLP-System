@@ -2,6 +2,50 @@
 
 L00172671 - Oisin Gibson
 
+## Getting Started
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) v18 or higher
+- [Python](https://www.python.org/downloads/) 3.8 or higher (must be on your system PATH)
+
+### First-time setup
+Clone the repo, then run:
+
+```bash
+npm run setup
+```
+
+This downloads and configures everything automatically:
+- Apache Tika (PDF text extraction)
+- Java Runtime (required by Tika)
+- Tesseract OCR (for scanned PDFs — optional, app works without it)
+- Python virtual environment + all NLP packages
+- Node.js dependencies for all packages
+
+### Running the app
+```bash
+npm start
+```
+
+This starts all four services together:
+
+| Service | URL |
+|---|---|
+| React client | http://localhost:3000 |
+| API server | http://localhost:8080 |
+| NLP microservice | http://localhost:8000 |
+| Tika (PDF extraction) | http://localhost:9998 |
+
+### Default accounts
+These are created automatically on first run:
+
+| Email | Password | Role |
+|---|---|---|
+| admin@achilles.com | Admin@123 | Admin |
+| demo@achilles.com | Demo@123 | User |
+
+---
+
 ## Project Overview
 Financial document management and NLP analysis system with:
 - React client for upload, document browsing, and NLP UI

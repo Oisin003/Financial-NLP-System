@@ -881,7 +881,13 @@ async function extractTextWithTika(filePath, options) {
  */
 export async function extractTextFromPDF(filePath) {
   // ATTEMPT 1: Try normal text extraction
-  const rawText = await extractTextWithTika(filePath);
+  let rawText = '';
+  try {
+    rawText = await extractTextWithTika(filePath);
+  } catch (attempt1Error) {
+    // Don't abort here — fall through to OCR fallbacks below
+    console.warn(`Initial extraction failed (${attempt1Error.message}), attempting OCR fallback...`);
+  }
   const validation = validateExtractedText(rawText);
 
   // Check if the extracted text is good enough

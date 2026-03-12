@@ -44,16 +44,24 @@ function Login({ onLogin }) {
     setLoading(true);
     clearMessage();
 
+    const payload = {
+      email: credentials.email.trim().toLowerCase(),
+      password: credentials.password
+    };
+
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          throw new Error(data.errors.map((error) => error.msg).join(' | '));
+        }
         throw new Error(data.message || 'Login failed');
       }
 

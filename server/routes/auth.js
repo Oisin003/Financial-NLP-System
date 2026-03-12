@@ -25,13 +25,13 @@ const passwordValidation = [
 // Validation rules for registration (kept as a plain list for readability)
 const registerValidation = [
   body('username').trim().isLength({ min: 4 }).withMessage('Please provide a valid username (at least 4 characters)'),
-  body('email').isEmail().withMessage('Please provide a valid email format'),
+  body('email').trim().normalizeEmail().isEmail().withMessage('Please provide a valid email format'),
   passwordValidation[0]
 ];
 
 // Validation rules for login
 const loginValidation = [
-  body('email').isEmail().withMessage('Please provide a valid email format'),
+  body('email').trim().normalizeEmail().isEmail().withMessage('Please provide a valid email format'),
   body('password').notEmpty().withMessage('Password is required')
 ];
 
@@ -47,7 +47,8 @@ router.post('/register', registerValidation, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     // Step 2: Check if email already exists
     const existingUserByEmail = await User.findOne({
@@ -106,7 +107,8 @@ router.post('/login', loginValidation, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     // Step 2: Find user by email
     const user = await User.findOne({ where: { email } });

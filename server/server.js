@@ -22,6 +22,7 @@ import Document from './models/Document.js';   // Document model
 import authRoutes from './routes/auth.js';     // Login/register routes
 import userRoutes from './routes/users.js';    // User management routes
 import documentRoutes from './routes/documents.js';  // Document upload/download routes
+import { seedDatabase } from './seed.js';             // Default user seeding
 
 // Load environment variables from .env file
 dotenv.config();
@@ -118,6 +119,7 @@ sequelize.sync()
   .then(async () => {
     console.log('Database connected and synced');
     await ensureDocumentsSchema();
+    await seedDatabase().catch((err) => console.warn('Seed warning:', err.message));  // Create default users if they don't exist yet
 
     deleteExpiredDocuments().catch((err) => console.error('Cleanup error:', err));
     cron.schedule('0 3 * * *', () => {

@@ -1,18 +1,27 @@
-import { execSync, spawn } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import https from 'https';
-import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 const runtimesDir = path.join(rootDir, 'runtimes');
+const localTesseractDir = path.join(runtimesDir, 'tesseract');
 
 const TIKA_VERSION = '3.2.3';
 const JRE_VERSION = '21.0.5+11';
 const TESSERACT_VERSION = '5.5.0.20241111';
+
+function findLocalTesseractExe() {
+  const candidates = [
+    path.join(localTesseractDir, 'tesseract.exe'),
+    path.join(localTesseractDir, 'bin', 'tesseract.exe'),
+    path.join(localTesseractDir, 'Tesseract-OCR', 'tesseract.exe')
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) || null;
+}
 
 const DOWNLOADS = {
   tika: {
@@ -28,47 +37,9 @@ const DOWNLOADS = {
   tesseract: {
     url: `https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-${TESSERACT_VERSION}.exe`,
     dest: path.join(runtimesDir, 'tesseract-installer.exe'),
-    check: () => existsSync(path.join(runtimesDir, 'tesseract', 'tesseract.exe'))
+    check: () => Boolean(findLocalTesseractExe())
   }
 };
-
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    console.log(`Downloading: ${url}`);
-    const file = fs.createWriteStream(dest);
-    
-    const request = (url) => {
-      const protocol = url.startsWith('https') ? https : require('http');
-      protocol.get(url, (response) => {
-        if (response.statusCode === 302 || response.statusCode === 301) {
-          request(response.headers.location);
-          return;
-        }
-        
-        const total = parseInt(response.headers['content-length'], 10);
-        let downloaded = 0;
-        
-        response.on('data', (chunk) => {
-          downloaded += chunk.length;
-          const percent = total ? Math.round((downloaded / total) * 100) : 0;
-          process.stdout.write(`\r  Progress: ${percent}%`);
-        });
-        
-        response.pipe(file);
-        file.on('finish', () => {
-          file.close();
-          console.log(' Done!');
-          resolve();
-        });
-      }).on('error', (err) => {
-        fs.unlink(dest, () => {});
-        reject(err);
-      });
-    };
-    
-    request(url);
-  });
-}
 
 async function setupTika() {
   console.log('\nSetting up Apache Tika...');
@@ -80,7 +51,7 @@ async function setupTika() {
   mkdirSync(path.join(runtimesDir, 'tika'), { recursive: true });
   
   try {
-    execSync(`curl -L --progress-bar -o "${DOWNLOADS.tika.dest}" "${DOWNLOADS.tika.url}"`, { stdio: 'inherit' });
+    execFileSync('curl', ['-L', '--progress-bar', '-o', DOWNLOADS.tika.dest, DOWNLOADS.tika.url], { stdio: 'inherit' });
     console.log('Tika installed');
   } catch (err) {
     console.error('Failed to download Tika. Please download manually from:');
@@ -98,7 +69,7 @@ async function setupJRE() {
   mkdirSync(path.join(runtimesDir, 'jre'), { recursive: true });
   
   try {
-    execSync(`curl -L --progress-bar -o "${DOWNLOADS.jre.dest}" "${DOWNLOADS.jre.url}"`, { stdio: 'inherit' });
+    execFileSync('curl', ['-L', '--progress-bar', '-o', DOWNLOADS.jre.dest, DOWNLOADS.jre.url], { stdio: 'inherit' });
     
     console.log('  Extracting...');
     execSync(`tar -xf "${DOWNLOADS.jre.dest}" -C "${runtimesDir}"`, { stdio: 'inherit' });
@@ -125,25 +96,58 @@ async function setupJRE() {
 async function setupTesseract() {
   console.log('\n Setting up Tesseract OCR...');
   if (DOWNLOADS.tesseract.check()) {
-    console.log('Tesseract already installed');
+    console.log(`Tesseract already installed at: ${findLocalTesseractExe()}`);
     return;
   }
+
+  const installerPath = DOWNLOADS.tesseract.dest;
+
+  const installerAttempts = [
+    ['/S', `/D=${localTesseractDir}`],
+    ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', `/DIR=${localTesseractDir}`],
+    ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', `/DIR=${localTesseractDir}`]
+  ];
+
+  const runInstaller = () => {
+    for (const args of installerAttempts) {
+      try {
+        execFileSync(installerPath, args, { stdio: 'inherit' });
+      } catch {
+        // Try the next installer mode.
+      }
+
+      if (DOWNLOADS.tesseract.check()) {
+        return true;
+      }
+    }
+    return false;
+  };
   
   try {
-    execSync(`curl -L --progress-bar -o "${DOWNLOADS.tesseract.dest}" "${DOWNLOADS.tesseract.url}"`, { stdio: 'inherit' });
-    
+    if (!existsSync(installerPath)) {
+      execFileSync('curl', ['-L', '--progress-bar', '-o', installerPath, DOWNLOADS.tesseract.url], { stdio: 'inherit' });
+    } else {
+      console.log(`  Using bundled installer: ${installerPath}`);
+    }
+
     console.log('  Running installer (this may take a moment)...');
-    execSync(`"${DOWNLOADS.tesseract.dest}" /S /D=${path.join(runtimesDir, 'tesseract')}`, { stdio: 'inherit' });
+    runInstaller();
     
-    // Wait for installation
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Wait briefly for silent install to finish writing files.
+    for (let i = 0; i < 20; i++) {
+      if (DOWNLOADS.tesseract.check()) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
     
-    if (DOWNLOADS.tesseract.check()) {
-      console.log('   Tesseract installed');
+    const tesseractExe = findLocalTesseractExe();
+    if (tesseractExe) {
+      console.log(`   Tesseract installed at: ${tesseractExe}`);
     } else {
       console.log('    Silent install may have failed. Please run the installer manually:');
       console.log(`     ${DOWNLOADS.tesseract.dest}`);
-      console.log(`     Install to: ${path.join(runtimesDir, 'tesseract')}`);
+      console.log(`     Install to: ${localTesseractDir}`);
     }
   } catch (err) {
     console.error('   Failed to setup Tesseract. Please download manually from:');
