@@ -1,0 +1,473 @@
+    1 /**
+    2  * NER (Named Entity Recognition) Accuracy Test
+    3  * 
+    4  * This test file evaluates the accuracy of the NER service by comparing
+    5  * extracted entities against known ground truth from sample financial documents.
+    6  * 
+    7  * Metrics calculated:
+    8  * - Precision: Of entities extracted, how many were correct?
+    9  * - Recall: Of actual entities, how many were found?
+   10  * - F1 Score: Harmonic mean of precision and recall
+   11  * 
+   12  * Run: node --experimental-vm-modules node_modules/jest/bin/jest.js server/tests/nerAccuracy.test.js
+   13  */
+   14 
+   15 import fetch from 'node-fetch';
+   16 
+   17 /**
+   18  * Helper: compute the average of numeric values in an array.
+   19  * Returns 0 when the array is empty to avoid division errors.
+   20  */
+   21 function average(values) {
+   22   if (!values || values.length === 0) {
+   23     return 0;
+   24   }
+   25 
+   26   let total = 0;
+   27   for (let i = 0; i < values.length; i++) {
+   28     total += values[i];
+   29   }
+   30 
+   31   return total / values.length;
+   32 }
+   33 
+   34 // ==========================================
+   35 // SAMPLE FINANCIAL DOCUMENTS WITH GROUND TRUTH
+   36 // ==========================================
+   37 
+   38 const testCases = [
+   39   {
+   40     name: 'Annual Report Extract',
+   41     text: `Apple Inc. reported revenue of $394.3 billion for fiscal year 2022. 
+   42            CEO Tim Cook announced the results on January 26, 2023 at the company's 
+   43            headquarters in Cupertino, California. The company saw a 7.8% increase 
+   44            compared to 2021. Microsoft Corporation and Google LLC remain key competitors.`,
+   45     expectedEntities: {
+   46       ORG: ['Apple Inc.', 'Microsoft Corporation', 'Google LLC'],
+   47       PERSON: ['Tim Cook'],
+   48       MONEY: ['$394.3 billion'],
+   49       DATE: ['fiscal year 2022', 'January 26, 2023', '2021'],
+   50       GPE: ['Cupertino', 'California'],
+   51       PERCENT: ['7.8%']
+   52     }
+   53   },
+   54   {
+   55     name: 'Earnings Call Summary',
+   56     text: `During Q3 2023, Amazon Web Services generated $22.1 billion in revenue. 
+   57            CFO Brian Olsavsky noted that operating income reached $5.4 billion, 
+   58            representing a 24.5% margin. The Seattle-based company employed 1.5 million 
+   59            people worldwide as of September 30, 2023.`,
+   60     expectedEntities: {
+   61       ORG: ['Amazon Web Services'],
+   62       PERSON: ['Brian Olsavsky'],
+   63       MONEY: ['$22.1 billion', '$5.4 billion'],
+   64       DATE: ['Q3 2023', 'September 30, 2023'],
+   65       GPE: ['Seattle'],
+   66       PERCENT: ['24.5%'],
+   67       CARDINAL: ['1.5 million']
+   68     }
+   69   },
+   70   {
+   71     name: 'Merger Announcement',
+   72     text: `JPMorgan Chase & Co. announced the acquisition of First Republic Bank 
+   73            for approximately $10.6 billion on May 1, 2023. Chairman Jamie Dimon 
+   74            stated this strengthens their position in San Francisco and Los Angeles 
+   75            markets. The deal was approved by the FDIC.`,
+   76     expectedEntities: {
+   77       ORG: ['JPMorgan Chase & Co.', 'First Republic Bank', 'FDIC'],
+   78       PERSON: ['Jamie Dimon'],
+   79       MONEY: ['$10.6 billion'],
+   80       DATE: ['May 1, 2023'],
+   81       GPE: ['San Francisco', 'Los Angeles']
+   82     }
+   83   },
+   84   {
+   85     name: 'UK Financial Statement',
+   86     text: `Barclays PLC reported pre-tax profit of £8.4 billion for the year ended 
+   87            31 December 2022. The London-headquartered bank increased dividends by 
+   88            20% to shareholders. CEO C.S. Venkatakrishnan highlighted growth in the 
+   89            United Kingdom and European markets.`,
+   90     expectedEntities: {
+   91       ORG: ['Barclays PLC'],
+   92       PERSON: ['C.S. Venkatakrishnan'],
+   93       MONEY: ['£8.4 billion'],
+   94       DATE: ['31 December 2022'],
+   95       GPE: ['London', 'United Kingdom'],
+   96       PERCENT: ['20%']
+   97     }
+   98   },
+   99   {
+  100     name: 'Investment Fund Report',
+  101     text: `BlackRock Inc. manages over $9.1 trillion in assets under management 
+  102            as of December 2023. CEO Larry Fink addressed ESG concerns at the 
+  103            World Economic Forum in Davos, Switzerland. The firm operates in 
+  104            30 countries with 18,000 employees.`,
+  105     expectedEntities: {
+  106       ORG: ['BlackRock Inc.', 'World Economic Forum'],
+  107       PERSON: ['Larry Fink'],
+  108       MONEY: ['$9.1 trillion'],
+  109       DATE: ['December 2023'],
+  110       GPE: ['Davos', 'Switzerland'],
+  111       CARDINAL: ['30', '18,000']
+  112     }
+  113   }
+  114 ];
+  115 
+  116 
+  117 // ==========================================
+  118 // HELPER FUNCTIONS FOR ACCURACY CALCULATION
+  119 // ==========================================
+  120 
+  121 /**
+  122  * Normalize entity text for comparison (lowercase, trim whitespace)
+  123  */
+  124 function normalizeEntity(text) {
+  125   return text.toLowerCase().trim().replace(/\s+/g, ' ');
+  126 }
+  127 
+  128 /**
+  129  * Calculate precision, recall, and F1 score
+  130  * @param {Set} extracted - Set of extracted entity texts
+  131  * @param {Set} expected - Set of expected entity texts
+  132  * @returns {Object} - { precision, recall, f1 }
+  133  */
+  134 function calculateMetrics(extracted, expected) {
+  135   // Normalize both sets so matching is case-insensitive and whitespace-safe.
+  136   const extractedNorm = new Set([...extracted].map(normalizeEntity));
+  137   const expectedNorm = new Set([...expected].map(normalizeEntity));
+  138   
+  139   // True positives: entities that were both extracted and expected
+  140   let truePositives = 0;
+  141   for (const entity of extractedNorm) {
+  142     if (expectedNorm.has(entity)) {
+  143       truePositives++;
+  144     }
+  145   }
+  146   
+  147   // Precision: TP / (TP + FP) = TP / extracted count
+  148   const precision = extractedNorm.size > 0 ? truePositives / extractedNorm.size : 0;
+  149   
+  150   // Recall: TP / (TP + FN) = TP / expected count
+  151   const recall = expectedNorm.size > 0 ? truePositives / expectedNorm.size : 0;
+  152   
+  153   // F1 Score: harmonic mean of precision and recall
+  154   const f1 = (precision + recall) > 0 
+  155     ? (2 * precision * recall) / (precision + recall) 
+  156     : 0;
+  157   
+  158   return {
+  159     precision: Math.round(precision * 100) / 100,
+  160     recall: Math.round(recall * 100) / 100,
+  161     f1: Math.round(f1 * 100) / 100,
+  162     truePositives,
+  163     extractedCount: extractedNorm.size,
+  164     expectedCount: expectedNorm.size
+  165   };
+  166 }
+  167 
+  168 
+  169 // ==========================================
+  170 // NER SERVICE CALL
+  171 // ==========================================
+  172 
+  173 /**
+  174  * Call the NER microservice to extract entities
+  175  * @param {string} text - Text to analyze
+  176  * @returns {Promise<Array>} - Array of entity objects
+  177  */
+  178 async function callNERService(text) {
+  179   const response = await fetch('http://127.0.0.1:8000/ner', {
+  180     method: 'POST',
+  181     headers: { 'Content-Type': 'application/json' },
+  182     body: JSON.stringify({ text })
+  183   });
+  184   
+  185   if (!response.ok) {
+  186     throw new Error(`NER service error: ${response.status}`);
+  187   }
+  188   
+  189   const data = await response.json();
+  190   return data.entities;
+  191 }
+  192 
+  193 /**
+  194  * Group entities by their label type
+  195  * @param {Array} entities - Array of entity objects
+  196  * @returns {Object} - Map of label -> array of entity texts
+  197  */
+  198 function groupEntitiesByLabel(entities) {
+  199   // Build an object like:
+  200   // { ORG: ['Apple Inc.'], PERSON: ['Tim Cook'] }
+  201   const grouped = {};
+  202   for (const entity of entities) {
+  203     if (!grouped[entity.label]) {
+  204       grouped[entity.label] = [];
+  205     }
+  206     grouped[entity.label].push(entity.text);
+  207   }
+  208   return grouped;
+  209 }
+  210 
+  211 
+  212 // ==========================================
+  213 // JEST TEST SUITE
+  214 // ==========================================
+  215 
+  216 describe('NER Accuracy Tests', () => {
+  217   // Increase timeout for API calls
+  218   jest.setTimeout(30000);
+  219   
+  220   // Store results for final summary
+  221   const allResults = [];
+  222 
+  223   // Test each sample document
+  224   test.each(testCases)('$name - Entity Extraction', async (testCase) => {
+  225     // Call NER service
+  226     const extractedEntities = await callNERService(testCase.text);
+  227     const extractedGrouped = groupEntitiesByLabel(extractedEntities);
+  228     
+  229     // Calculate metrics for each entity type (ORG, PERSON, MONEY, etc.)
+  230     const typeResults = {};
+  231     const allEntityTypes = new Set([
+  232       ...Object.keys(testCase.expectedEntities),
+  233       ...Object.keys(extractedGrouped)
+  234     ]);
+  235     
+  236     for (const entityType of allEntityTypes) {
+  237       const extracted = new Set(extractedGrouped[entityType] || []);
+  238       const expected = new Set(testCase.expectedEntities[entityType] || []);
+  239       
+  240       if (expected.size > 0 || extracted.size > 0) {
+  241         typeResults[entityType] = calculateMetrics(extracted, expected);
+  242       }
+  243     }
+  244     
+  245     // Calculate overall metrics by flattening entities into "LABEL:text" pairs.
+  246     // This gives one global score per document.
+  247     const allExtracted = new Set(extractedEntities.map(e => `${e.label}:${e.text}`));
+  248     const allExpected = new Set();
+  249     for (const [type, entities] of Object.entries(testCase.expectedEntities)) {
+  250       for (const entity of entities) {
+  251         allExpected.add(`${type}:${entity}`);
+  252       }
+  253     }
+  254     const overallMetrics = calculateMetrics(allExtracted, allExpected);
+  255     
+  256     // Save per-document results so the final summary test can aggregate all documents.
+  257     allResults.push({
+  258       name: testCase.name,
+  259       typeResults,
+  260       overall: overallMetrics,
+  261       extractedGrouped,
+  262       expectedEntities: testCase.expectedEntities
+  263     });
+  264     
+  265     // Log detailed results
+  266     console.log(`\n[INFO] ${testCase.name}`);
+  267     console.log('-'.repeat(50));
+  268     
+  269     for (const [type, metrics] of Object.entries(typeResults)) {
+  270       const status = metrics.recall >= 0.5 ? '[success]' : '[danger]';
+  271       console.log(`  ${status} ${type.padEnd(10)} | P: ${metrics.precision.toFixed(2)} | R: ${metrics.recall.toFixed(2)} | F1: ${metrics.f1.toFixed(2)}`);
+  272       
+  273       // Show what was found vs expected
+  274       const found = extractedGrouped[type] || [];
+  275       const expected = testCase.expectedEntities[type] || [];
+  276       if (found.length > 0) {
+  277         console.log(`    Found: ${found.slice(0, 3).join(', ')}${found.length > 3 ? '...' : ''}`);
+  278       }
+  279       if (expected.length > 0) {
+  280         console.log(`    Expected: ${expected.slice(0, 3).join(', ')}${expected.length > 3 ? '...' : ''}`);
+  281       }
+  282     }
+  283     
+  284     console.log('-'.repeat(50));
+  285     console.log(`  OVERALL | P: ${overallMetrics.precision.toFixed(2)} | R: ${overallMetrics.recall.toFixed(2)} | F1: ${overallMetrics.f1.toFixed(2)}`);
+  286     
+  287     // Assertions - document should have reasonable entity extraction
+  288     // We use soft thresholds since spaCy won't match everything perfectly
+  289     expect(overallMetrics.recall).toBeGreaterThan(0.3); // At least 30% of expected entities found
+  290   });
+  291 
+  292 
+  293   // Final summary test
+  294   // This runs after per-document tests and prints a compact report.
+  295   test('Overall Accuracy Summary', () => {
+  296     if (allResults.length === 0) {
+  297       console.log('No test results to summarize');
+  298       return;
+  299     }
+  300     
+  301     console.log('\n\n' + '='.repeat(60));
+  302     console.log('NER ACCURACY SUMMARY REPORT');
+  303     console.log('='.repeat(60));
+  304     
+  305     // Calculate average metrics across all test cases.
+  306     // We keep this explicit so each step is easy to follow.
+  307     const precisionValues = [];
+  308     const recallValues = [];
+  309     const f1Values = [];
+  310 
+  311     for (const result of allResults) {
+  312       precisionValues.push(result.overall.precision);
+  313       recallValues.push(result.overall.recall);
+  314       f1Values.push(result.overall.f1);
+  315     }
+  316 
+  317     const avgPrecision = average(precisionValues);
+  318     const avgRecall = average(recallValues);
+  319     const avgF1 = average(f1Values);
+  320     
+  321     console.log(`\nTest Documents: ${allResults.length}`);
+  322     console.log(`Average Precision: ${(avgPrecision * 100).toFixed(1)}%`);
+  323     console.log(`Average Recall: ${(avgRecall * 100).toFixed(1)}%`);
+  324     console.log(`Average F1 Score: ${(avgF1 * 100).toFixed(1)}%`);
+  325     
+  326     // Per-type breakdown
+  327     console.log('\nPer-Entity-Type Performance:');
+  328     console.log('-'.repeat(50));
+  329     
+  330     const typeAggregates = {};
+  331     for (const result of allResults) {
+  332       for (const [type, metrics] of Object.entries(result.typeResults)) {
+  333         if (!typeAggregates[type]) {
+  334           typeAggregates[type] = { precision: [], recall: [], f1: [] };
+  335         }
+  336         typeAggregates[type].precision.push(metrics.precision);
+  337         typeAggregates[type].recall.push(metrics.recall);
+  338         typeAggregates[type].f1.push(metrics.f1);
+  339       }
+  340     }
+  341     
+  342     const sortedTypes = Object.entries(typeAggregates).sort((a, b) => b[1].f1.length - a[1].f1.length);
+  343     
+  344     for (const [type, metrics] of sortedTypes) {
+  345       const avgP = average(metrics.precision);
+  346       const avgR = average(metrics.recall);
+  347       const avgF = average(metrics.f1);
+  348       const grade = avgF >= 0.7 ? '[success]' : avgF >= 0.4 ? '[warning]' : '[danger]';
+  349       
+  350       console.log(`${grade} ${type.padEnd(12)} | P: ${(avgP * 100).toFixed(0).padStart(3)}% | R: ${(avgR * 100).toFixed(0).padStart(3)}% | F1: ${(avgF * 100).toFixed(0).padStart(3)}% (n=${metrics.f1.length})`);
+  351     }
+  352     
+  353     console.log('\n' + '='.repeat(60));
+  354     console.log('Legend: [success] Good (F1>=70%) | [warning] Fair (F1>=40%) | [danger] Needs Work (F1<40%)');
+  355     console.log('='.repeat(60) + '\n');
+  356     
+  357     // Store summary for documentation
+  358     // Build a documentation-friendly JSON summary.
+  359     // This is useful for saving in reports or PR notes.
+  360     const perTypeMetrics = {};
+  361     for (const [type, m] of sortedTypes) {
+  362       perTypeMetrics[type] = {
+  363         precision: Math.round(average(m.precision) * 100),
+  364         recall: Math.round(average(m.recall) * 100),
+  365         f1: Math.round(average(m.f1) * 100)
+  366       };
+  367     }
+  368 
+  369     const summary = {
+  370       timestamp: new Date().toISOString(),
+  371       testCount: allResults.length,
+  372       averageMetrics: {
+  373         precision: Math.round(avgPrecision * 100),
+  374         recall: Math.round(avgRecall * 100),
+  375         f1: Math.round(avgF1 * 100)
+  376       },
+  377       perTypeMetrics
+  378     };
+  379     
+  380     console.log('Summary JSON (for documentation):');
+  381     console.log(JSON.stringify(summary, null, 2));
+  382     
+  383     // Assertions for overall quality
+  384     expect(avgF1).toBeGreaterThan(0.35); // Average F1 should be above 35%
+  385   });
+  386 });
+  387 
+  388 
+  389 // ==========================================
+  390 // STANDALONE RUNNER (for running without Jest)
+  391 // ==========================================
+  392 
+  393 /**
+  394  * Run accuracy tests directly without Jest
+  395  * Usage: node server/tests/nerAccuracy.test.js --standalone
+  396  */
+  397 async function runStandalone() {
+  398   console.log('[INFO] NER Accuracy Test - Standalone Mode\n');
+  399   
+  400   const results = [];
+  401   
+  402   for (const testCase of testCases) {
+  403     console.log(`Testing: ${testCase.name}...`);
+  404     
+  405     try {
+  406       const extractedEntities = await callNERService(testCase.text);
+  407       const extractedGrouped = groupEntitiesByLabel(extractedEntities);
+  408       
+  409       // Calculate overall metrics
+  410       const allExtracted = new Set(extractedEntities.map(e => `${e.label}:${e.text}`));
+  411       const allExpected = new Set();
+  412       for (const [type, entities] of Object.entries(testCase.expectedEntities)) {
+  413         for (const entity of entities) {
+  414           allExpected.add(`${type}:${entity}`);
+  415         }
+  416       }
+  417       
+  418       const metrics = calculateMetrics(allExtracted, allExpected);
+  419       results.push({ name: testCase.name, ...metrics });
+  420       
+  421       console.log(`  [success] Precision: ${(metrics.precision * 100).toFixed(1)}% | Recall: ${(metrics.recall * 100).toFixed(1)}% | F1: ${(metrics.f1 * 100).toFixed(1)}%`);
+  422       
+  423       // Show detailed comparison
+  424       console.log('\n  Extracted entities:');
+  425       for (const [type, entities] of Object.entries(extractedGrouped)) {
+  426         console.log(`    ${type}: ${entities.join(', ')}`);
+  427       }
+  428       console.log('\n  Expected entities:');
+  429       for (const [type, entities] of Object.entries(testCase.expectedEntities)) {
+  430         console.log(`    ${type}: ${entities.join(', ')}`);
+  431       }
+  432       console.log('');
+  433       
+  434     } catch (error) {
+  435       console.log(`  [danger] Error: ${error.message}`);
+  436       results.push({ name: testCase.name, error: error.message });
+  437     }
+  438   }
+  439   
+  440   // Summary
+  441   // If at least one test case succeeded, print overall averages.
+  442   const validResults = results.filter(r => !r.error);
+  443   if (validResults.length > 0) {
+  444     const precisionValues = [];
+  445     const recallValues = [];
+  446     const f1Values = [];
+  447 
+  448     for (const result of validResults) {
+  449       precisionValues.push(result.precision);
+  450       recallValues.push(result.recall);
+  451       f1Values.push(result.f1);
+  452     }
+  453 
+  454     const avgP = average(precisionValues);
+  455     const avgR = average(recallValues);
+  456     const avgF1 = average(f1Values);
+  457     
+  458     console.log('\n' + '='.repeat(50));
+  459     console.log('SUMMARY');
+  460     console.log('='.repeat(50));
+  461     console.log(`Tests passed: ${validResults.length}/${testCases.length}`);
+  462     console.log(`Average Precision: ${(avgP * 100).toFixed(1)}%`);
+  463     console.log(`Average Recall: ${(avgR * 100).toFixed(1)}%`);
+  464     console.log(`Average F1 Score: ${(avgF1 * 100).toFixed(1)}%`);
+  465     console.log('='.repeat(50));
+  466   }
+  467 }
+  468 
+  469 // Check if running standalone
+  470 if (process.argv.includes('--standalone')) {
+  471   runStandalone().catch(console.error);
+  472 }
+  473 

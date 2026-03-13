@@ -28,6 +28,7 @@ const SERVER_ROOT = path.resolve(__dirname, '..');
 const RESULTS_DIR = path.join(SERVER_ROOT, 'results', 'ablation');
 
 // All rule IDs we score as binary labels (present/absent per document).
+// Keeping this list centralized ensures every variant is compared on the same target labels.
 const TARGET_RULE_IDS = [
   'rag-status',
   'incomplete-data',
@@ -37,6 +38,7 @@ const TARGET_RULE_IDS = [
 ];
 
 // Fixed ablation variants. Baseline keeps every rule enabled.
+// Each variant toggles one behavior so we can estimate its contribution to overall quality.
 const VARIANTS = [
   {
     id: 'baseline',
@@ -75,6 +77,7 @@ const VARIANTS = [
 ];
 
 // Small but diverse labeled set used by every variant.
+// These cases are intentionally stable so historical runs are comparable.
 const DATASET = [
   {
     id: 'healthy_green',
@@ -166,6 +169,7 @@ function calculatePrf1(tp, fp, fn) {
 }
 
 function scoreRulePresence(predictedRuleIds, expectedRuleIds) {
+  // Count outcomes over the fixed target-rule space (not just rules that were predicted).
   let tp = 0;
   let fp = 0;
   let fn = 0;
@@ -186,10 +190,12 @@ function runVariant(variant) {
   // Measure how long this variant takes to run.
   const startedAt = Date.now();
 
+  // Totals are accumulated across all documents, then converted to PR/F1 once per variant.
   let tpTotal = 0;
   let fpTotal = 0;
   let fnTotal = 0;
 
+  // RAG status quality is tracked independently because it is not a simple rule presence signal.
   let ragCases = 0;
   let ragCorrect = 0;
 
@@ -202,6 +208,7 @@ function runVariant(variant) {
     const expectedRuleIds = new Set(example.expectedRuleIds);
 
     const { tp, fp, fn } = scoreRulePresence(predictedRuleIds, expectedRuleIds);
+    // Aggregate confusion counts so we can compute one macro view per variant.
     tpTotal += tp;
     fpTotal += fp;
     fnTotal += fn;
@@ -218,6 +225,7 @@ function runVariant(variant) {
     }
 
     caseRows.push({
+      // Save per-case outputs so markdown can explain exactly where differences happened.
       caseId: example.id,
       expectedRuleIds: [...expectedRuleIds],
       predictedRuleIds: [...predictedRuleIds],
@@ -285,6 +293,7 @@ function buildCsv(results) {
 }
 
 function getRuleToggleSummary(options) {
+  // Human-readable summary used in markdown sections.
   const entries = Object.entries(options || {});
   if (entries.length === 0) {
     return 'Default behavior (all rules enabled).';
@@ -299,6 +308,7 @@ function getRuleToggleSummary(options) {
 }
 
 function buildDetailedMarkdownReport(results, createdAtIso) {
+  // Baseline is used as the reference point for all delta metrics.
   const baseline = results.find((result) => result.id === 'baseline') || results[0];
   const lines = [];
 
@@ -348,6 +358,7 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
     }
 
     const disabledRuleKeys = [];
+    // We only consider explicit disabled toggles in this ranking.
     for (const [key, value] of Object.entries(result.options || {})) {
       if (value === false && key.startsWith('enable')) {
         disabledRuleKeys.push(key);
@@ -368,6 +379,7 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
   }
 
   singleRuleAblations.sort((a, b) => a.deltaF1 - b.deltaF1);
+  // More negative deltaF1 appears first (larger quality drop => higher importance).
 
   lines.push('## Rule Importance Ranking (Single-Rule Ablations)');
   lines.push('');
@@ -418,6 +430,7 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
 
     let mismatchCount = 0;
     for (const row of result.cases) {
+      // Compare expected and predicted rule IDs explicitly for readable diagnostics.
       const expectedSet = new Set(row.expectedRuleIds);
       const predictedSet = new Set(row.predictedRuleIds);
 
@@ -465,6 +478,7 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
 }
 
 function printSummaryTable(results) {
+  // Console table is intentionally compact for quick CLI review.
   console.log('\nAblation Summary (Audit Rules)');
   console.log('='.repeat(88));
   console.log('Variant'.padEnd(22), 'P'.padEnd(8), 'R'.padEnd(8), 'F1'.padEnd(8), 'RAG Acc'.padEnd(10), 'ms'.padEnd(8));
@@ -514,6 +528,7 @@ function main() {
 
   // Step 4: build detailed JSON payload.
   const payload = {
+    // Include dataset metadata so downstream analysis knows exactly what was scored.
     createdAt,
     datasetSize: DATASET.length,
     targetRuleIds: TARGET_RULE_IDS,
