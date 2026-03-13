@@ -10,6 +10,32 @@ import natural from 'natural';  // For tokenizing and stemming words
 import fs from 'fs';  // For reading files from disk
 import fetch from 'node-fetch';  // For making HTTP requests
 import path from 'path';  // For working with file paths
+import { fileURLToPath } from 'url';  // For ESM __dirname equivalent
+
+// Derive __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Check whether Tesseract OCR is available in the local runtimes folder.
+// Uses the same detection logic as scripts/startTika.js so the two stay in sync.
+function findLocalTesseractDir() {
+  const runtimesDir = path.join(__dirname, '..', '..', 'runtimes');
+  const baseDir = path.join(runtimesDir, 'tesseract');
+  const candidates = [
+    // Local runtimes folder (preferred)
+    baseDir,
+    path.join(baseDir, 'bin'),
+    path.join(baseDir, 'Tesseract-OCR'),
+    // Default Windows system install locations used when the installer picks its own target
+    'C:\\Program Files\\Tesseract-OCR',
+    'C:\\Program Files (x86)\\Tesseract-OCR'
+  ];
+  return candidates.find((dir) => fs.existsSync(path.join(dir, 'tesseract.exe'))) || null;
+}
+const isTesseractAvailable = findLocalTesseractDir() !== null;
+if (!isTesseractAvailable) {
+  console.warn('nlpProcessor: Tesseract not found in runtimes/tesseract. OCR fallback will be skipped for image-only PDFs.');
+}
 
 /**
  * This function sends text to the Python NER (Named Entity Recognition) microservice
@@ -894,30 +920,38 @@ export async function extractTextFromPDF(filePath) {
   if (!validation.ok) {
     // If not, try OCR (for scanned documents or images)
     console.warn(`Text extraction validation failed, attempting OCR fallback: ${validation.reason}`);
-    
-    // ATTEMPT 2: Try with OCR enabled
-    const ocrText = await extractTextWithTika(filePath, { 
-      ocr: true, 
-      ocrStrategy: 'ocr_and_text'
-    });
-    const ocrValidation = validateExtractedText(ocrText);
-    
-    // Check if OCR text is good
-    if (ocrValidation.ok) {
-      console.log('OCR extraction successful');
-      return ocrText;
-    }
-    
-    // ATTEMPT 3: Force OCR-only (for image-only/scanned PDFs)
-    console.warn('OCR extraction failed, attempting forced OCR-only extraction...');
-    const forcedOcrText = await extractTextWithTika(filePath, { 
-      ocr: true, 
-      ocrStrategy: 'ocr_only'
-    });
-    const forcedOcrValidation = validateExtractedText(forcedOcrText);
-    if (forcedOcrValidation.ok) {
-      console.log('Forced OCR-only extraction successful');
-      return forcedOcrText;
+
+    // ocrText is declared here so the final error-message block can reference it
+    // regardless of whether OCR was attempted.
+    let ocrText = '';
+
+    if (isTesseractAvailable) {
+      // ATTEMPT 2: Try with OCR enabled
+      ocrText = await extractTextWithTika(filePath, {
+        ocr: true,
+        ocrStrategy: 'ocr_and_text'
+      });
+      const ocrValidation = validateExtractedText(ocrText);
+
+      // Check if OCR text is good
+      if (ocrValidation.ok) {
+        console.log('OCR extraction successful');
+        return ocrText;
+      }
+
+      // ATTEMPT 3: Force OCR-only (for image-only/scanned PDFs)
+      console.warn('OCR extraction failed, attempting forced OCR-only extraction...');
+      const forcedOcrText = await extractTextWithTika(filePath, {
+        ocr: true,
+        ocrStrategy: 'ocr_only'
+      });
+      const forcedOcrValidation = validateExtractedText(forcedOcrText);
+      if (forcedOcrValidation.ok) {
+        console.log('Forced OCR-only extraction successful');
+        return forcedOcrText;
+      }
+    } else {
+      console.warn('Tesseract OCR is not available; skipping OCR attempts. Install Tesseract to runtimes/tesseract/ to enable OCR on image-only PDFs.');
     }
 
     // ATTEMPT 4: Try alternative extraction method

@@ -7,3 +7,6 @@ server/database.sqlite
 # Local runtimes (Tika, JRE, Tesseract) - binaries too large for git
 runtimes/*
 !runtimes/README.md
+!runtimes/tesseract-installer.exe
+!runtimes/tesseract/
+!runtimes/tesseract/**

@@ -12,7 +12,10 @@ function hasLocalTesseract() {
   const candidates = [
     path.join(localTesseractDir, 'tesseract.exe'),
     path.join(localTesseractDir, 'bin', 'tesseract.exe'),
-    path.join(localTesseractDir, 'Tesseract-OCR', 'tesseract.exe')
+    path.join(localTesseractDir, 'Tesseract-OCR', 'tesseract.exe'),
+    // Default Windows system install locations used when the installer picks its own target
+    'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+    'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
   ];
 
   return candidates.some((candidate) => existsSync(candidate));
@@ -53,7 +56,7 @@ const checks = [
     name: 'Tesseract OCR',
     path: localTesseractDir,
     check: hasLocalTesseract,
-    required: false,
+    required: true,
     fix: null
   },
   {

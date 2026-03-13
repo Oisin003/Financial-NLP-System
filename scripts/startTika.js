@@ -1,9 +1,8 @@
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdtempSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
-import { execFileSync } from 'child_process';
 import net from 'net';
 import fetch from 'node-fetch';
 
@@ -18,15 +17,23 @@ const javaBin = process.env.JAVA_BIN || path.join(runtimesDir, 'jre', 'bin', 'ja
 function findLocalTesseractDir() {
   const baseDir = path.join(runtimesDir, 'tesseract');
   const candidates = [
+    // Local runtimes folder (preferred — no UAC needed)
     baseDir,
     path.join(baseDir, 'bin'),
-    path.join(baseDir, 'Tesseract-OCR')
+    path.join(baseDir, 'Tesseract-OCR'),
+    // Default Windows system install locations used when the installer picks its own target
+    'C:\\Program Files\\Tesseract-OCR',
+    'C:\\Program Files (x86)\\Tesseract-OCR'
   ];
 
   return candidates.find((dir) => existsSync(path.join(dir, 'tesseract.exe'))) || null;
 }
 
-function ensureLocalTesseractInstalled() {
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ensureLocalTesseractInstalled() {
   const existing = findLocalTesseractDir();
   if (existing) {
     return existing;
@@ -44,6 +51,18 @@ function ensureLocalTesseractInstalled() {
     ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', `/DIR=${installTarget}`]
   ];
 
+  async function waitForInstall(timeoutSeconds = 30) {
+    for (let i = 0; i < timeoutSeconds; i++) {
+      const installed = findLocalTesseractDir();
+      if (installed) {
+        return installed;
+      }
+      await sleepMs(1000);
+    }
+
+    return null;
+  }
+
   console.log(`Attempting local Tesseract install from: ${installerPath}`);
   for (const args of installerAttempts) {
     try {
@@ -52,17 +71,43 @@ function ensureLocalTesseractInstalled() {
       // Try the next known silent installer syntax.
     }
 
-    const installed = findLocalTesseractDir();
+    // NSIS/Inno installers can spawn a child process that keeps writing after the parent exits.
+    // Poll across all known install locations to give it time to finish.
+    const installed = await waitForInstall();
     if (installed) {
       console.log(`Local Tesseract installed at: ${installed}`);
       return installed;
     }
   }
 
+  console.log('Silent Tesseract installation did not complete. Launching the installer UI...');
+  console.log('Complete the installer, then Tika startup will continue automatically.');
+
+  try {
+    execFileSync(
+      'powershell',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-Command',
+        `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -Wait`
+      ],
+      { stdio: 'inherit' }
+    );
+  } catch {
+    return null;
+  }
+
+  const interactiveInstall = await waitForInstall(10);
+  if (interactiveInstall) {
+    console.log(`Local Tesseract installed at: ${interactiveInstall}`);
+    return interactiveInstall;
+  }
+
   return null;
 }
 
-const detectedTesseractDir = ensureLocalTesseractInstalled();
+const detectedTesseractDir = await ensureLocalTesseractInstalled();
 const tesseractPath = process.env.TESSERACT_PATH || detectedTesseractDir || path.join(runtimesDir, 'tesseract');
 const tesseractDataPath = process.env.TESSERACT_DATAPATH || path.join(tesseractPath, 'tessdata');
 const defaultTikaConfigPath = path.join(__dirname, '..', 'server', 'tika-config.xml');
@@ -109,6 +154,40 @@ async function isExistingTika(host, port) {
   }
 }
 
+function findProcessIdsUsingPort(port) {
+  try {
+    const output = execFileSync(
+      'cmd',
+      ['/d', '/s', '/c', `netstat -ano -p tcp | findstr :${port}`],
+      { encoding: 'utf8' }
+    );
+
+    const pids = new Set();
+    for (const line of output.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      const parts = trimmed.split(/\s+/);
+      const pid = parts[parts.length - 1];
+      if (/^\d+$/.test(pid)) {
+        pids.add(pid);
+      }
+    }
+
+    return Array.from(pids);
+  } catch {
+    return [];
+  }
+}
+
+function killProcesses(processIds) {
+  for (const processId of processIds) {
+    execFileSync('taskkill', ['/PID', processId, '/T', '/F'], { stdio: 'inherit' });
+  }
+}
+
 if (!existsSync(jarPath)) {
   console.error(`Tika JAR not found at: ${jarPath}`);
   console.error('Run the setup script or download runtimes manually. See runtimes/README.md');
@@ -123,13 +202,32 @@ if (!existsSync(javaBin)) {
 
 if (await isPortOpen(resolvedTikaHost, resolvedTikaPort)) {
   if (await isExistingTika(resolvedTikaHost, resolvedTikaPort)) {
-    console.log(`Tika is already running at http://${resolvedTikaHost}:${resolvedTikaPort}. Reusing existing instance.`);
-    process.exit(0);
-  }
+    console.log(`Tika is already running at http://${resolvedTikaHost}:${resolvedTikaPort}. Restarting it to apply the current OCR configuration.`);
+    const processIds = findProcessIdsUsingPort(resolvedTikaPort);
 
-  console.error(`Port ${resolvedTikaPort} is already in use by another process.`);
-  console.error(`Stop the conflicting process or set TIKA_PORT to a different port before running npm start.`);
-  process.exit(1);
+    if (processIds.length === 0) {
+      console.error(`Unable to identify the running Tika process on port ${resolvedTikaPort}. Stop it manually and try again.`);
+      process.exit(1);
+    }
+
+    try {
+      killProcesses(processIds);
+      await sleepMs(2000);
+    } catch (error) {
+      console.error(`Failed to stop the existing Tika process on port ${resolvedTikaPort}: ${error.message}`);
+      process.exit(1);
+    }
+
+    if (await isPortOpen(resolvedTikaHost, resolvedTikaPort)) {
+      console.error(`Port ${resolvedTikaPort} is still in use after stopping the previous Tika process.`);
+      console.error('Stop the conflicting process manually and run npm start again.');
+      process.exit(1);
+    }
+  } else {
+    console.error(`Port ${resolvedTikaPort} is already in use by another process.`);
+    console.error(`Stop the conflicting process or set TIKA_PORT to a different port before running npm start.`);
+    process.exit(1);
+  }
 }
 
 // Generate config with absolute Tesseract paths

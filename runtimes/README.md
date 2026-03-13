@@ -11,6 +11,10 @@ npm run setup
 
 This will automatically download and configure all required components.
 
+If you want fresh GitHub clones to work without any installer step, commit a portable
+Tesseract runtime directly under `runtimes/tesseract/`. The app already prefers that
+folder and will use it immediately on startup.
+
 ## Manual Setup
 
 If automatic setup fails, place the following components here:
@@ -47,7 +51,19 @@ runtimes/
 - Place in `runtimes/tesseract/`
 - Ensure `tessdata/` folder contains language files (at minimum `eng.traineddata`)
 
+Recommended portable layout for committing to the repo:
+```
+runtimes/
+└── tesseract/
+    ├── tesseract.exe
+    ├── *.dll
+    └── tessdata/
+        └── eng.traineddata
+```
+
 ## Notes
-- These files are intentionally gitignored due to size
+- The easiest user experience is to commit a portable `runtimes/tesseract/` folder so OCR is ready on first run
+- The bundled `tesseract-installer.exe` is only a fallback when the portable folder is not present
+- `runtimes/tesseract/` is allowed in git; other extracted runtime folders remain gitignored due to size
 - The `npm run tika` script automatically uses these paths
 - Override via environment variables if needed: TIKA_JAR, JAVA_BIN, TESSERACT_PATH

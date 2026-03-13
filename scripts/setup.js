@@ -17,10 +17,29 @@ function findLocalTesseractExe() {
   const candidates = [
     path.join(localTesseractDir, 'tesseract.exe'),
     path.join(localTesseractDir, 'bin', 'tesseract.exe'),
-    path.join(localTesseractDir, 'Tesseract-OCR', 'tesseract.exe')
+    path.join(localTesseractDir, 'Tesseract-OCR', 'tesseract.exe'),
+    // Default Windows system install locations used when the installer picks its own target
+    'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+    'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
   ];
 
   return candidates.find((candidate) => existsSync(candidate)) || null;
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForTesseractInstall(timeoutSeconds = 30) {
+  for (let i = 0; i < timeoutSeconds; i++) {
+    const tesseractExe = findLocalTesseractExe();
+    if (tesseractExe) {
+      return tesseractExe;
+    }
+    await sleepMs(1000);
+  }
+
+  return null;
 }
 
 const DOWNLOADS = {
@@ -108,7 +127,7 @@ async function setupTesseract() {
     ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', `/DIR=${localTesseractDir}`]
   ];
 
-  const runInstaller = () => {
+  const runSilentInstaller = async () => {
     for (const args of installerAttempts) {
       try {
         execFileSync(installerPath, args, { stdio: 'inherit' });
@@ -116,11 +135,35 @@ async function setupTesseract() {
         // Try the next installer mode.
       }
 
-      if (DOWNLOADS.tesseract.check()) {
-        return true;
+      const tesseractExe = await waitForTesseractInstall();
+      if (tesseractExe) {
+        return tesseractExe;
       }
     }
-    return false;
+    return null;
+  };
+
+  const runInteractiveInstaller = async () => {
+    console.log('  Silent install did not complete successfully. Launching the Tesseract installer UI...');
+    console.log('  Complete the installer, then this setup will continue automatically.');
+
+    try {
+      execFileSync(
+        'powershell',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy', 'Bypass',
+          '-Command',
+          `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -Wait`
+        ],
+        { stdio: 'inherit' }
+      );
+    } catch (err) {
+      console.error('  Failed to launch the interactive Tesseract installer UI automatically.');
+      return null;
+    }
+
+    return waitForTesseractInstall(10);
   };
   
   try {
@@ -130,22 +173,17 @@ async function setupTesseract() {
       console.log(`  Using bundled installer: ${installerPath}`);
     }
 
-    console.log('  Running installer (this may take a moment)...');
-    runInstaller();
-    
-    // Wait briefly for silent install to finish writing files.
-    for (let i = 0; i < 20; i++) {
-      if (DOWNLOADS.tesseract.check()) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log('  Running silent installer (this may take a moment)...');
+    let tesseractExe = await runSilentInstaller();
+
+    if (!tesseractExe) {
+      tesseractExe = await runInteractiveInstaller();
     }
-    
-    const tesseractExe = findLocalTesseractExe();
+
     if (tesseractExe) {
       console.log(`   Tesseract installed at: ${tesseractExe}`);
     } else {
-      console.log('    Silent install may have failed. Please run the installer manually:');
+      console.log('    Tesseract installation did not complete. Please run the installer manually:');
       console.log(`     ${DOWNLOADS.tesseract.dest}`);
       console.log(`     Install to: ${localTesseractDir}`);
     }
