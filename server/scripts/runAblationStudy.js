@@ -19,6 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import { analyzeAuditFlags } from '../services/nlpProcessor.js';
 
 // Figure out where this script lives so output paths are stable.
@@ -26,6 +27,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SERVER_ROOT = path.resolve(__dirname, '..');
 const RESULTS_DIR = path.join(SERVER_ROOT, 'results', 'ablation');
+const UPLOADS_DIR = path.join(SERVER_ROOT, 'uploads', 'documents');
 
 // All rule IDs we score as binary labels (present/absent per document).
 // Keeping this list centralized ensures every variant is compared on the same target labels.
@@ -78,7 +80,7 @@ const VARIANTS = [
 
 // Small but diverse labeled set used by every variant.
 // These cases are intentionally stable so historical runs are comparable.
-const DATASET = [
+const BASE_DATASET = [
   {
     id: 'healthy_green',
     text: [
@@ -142,6 +144,84 @@ const DATASET = [
   }
 ];
 
+function getUploadedPdfFiles() {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(UPLOADS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.pdf'))
+    .map((entry) => entry.name);
+}
+
+function pickRandomItem(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  const index = Math.floor(Math.random() * items.length);
+  return items[index];
+}
+
+async function buildDataset() {
+  const dataset = [...BASE_DATASET];
+  const uploadedPdfs = getUploadedPdfFiles();
+  const selectedPdf = pickRandomItem(uploadedPdfs);
+
+  if (!selectedPdf) {
+    console.log('No uploaded PDFs found for dynamic ablation case; running with base labeled dataset only.');
+    return {
+      dataset,
+      randomCaseMeta: null
+    };
+  }
+
+  const selectedPdfPath = path.join(UPLOADS_DIR, selectedPdf);
+
+  try {
+    const dataBuffer = fs.readFileSync(selectedPdfPath);
+    const parsed = await pdfParse(dataBuffer);
+    const extractedText = (parsed?.text || '').trim();
+
+    if (extractedText.length < 30) {
+      console.warn(`Selected random PDF (${selectedPdf}) has low extractable text (${extractedText.length} chars). Including as unscored case.`);
+    }
+
+    dataset.push({
+      id: `random_uploaded_pdf__${selectedPdf}`,
+      text: extractedText,
+      // No manual labels for random uploads; keep expected labels empty
+      // and mark this case as unscored for PR/F1.
+      expectedRuleIds: [],
+      scoreInMetrics: false
+    });
+
+    console.log(`Random ablation PDF case selected: ${selectedPdf}`);
+
+    return {
+      dataset,
+      randomCaseMeta: {
+        filename: selectedPdf,
+        included: true,
+        reason: null,
+        extractedChars: extractedText.length,
+        pages: parsed?.numpages ?? null
+      }
+    };
+  } catch (error) {
+    console.warn(`Failed to process random uploaded PDF (${selectedPdf}): ${error.message}`);
+    return {
+      dataset,
+      randomCaseMeta: {
+        filename: selectedPdf,
+        included: false,
+        reason: 'parse-failed'
+      }
+    };
+  }
+}
+
 function ensureResultsDir() {
   // Create output folder if needed. "recursive: true" means no error if it already exists.
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -186,7 +266,7 @@ function scoreRulePresence(predictedRuleIds, expectedRuleIds) {
   return { tp, fp, fn };
 }
 
-function runVariant(variant) {
+function runVariant(variant, dataset) {
   // Measure how long this variant takes to run.
   const startedAt = Date.now();
 
@@ -201,23 +281,26 @@ function runVariant(variant) {
 
   const caseRows = [];
 
-  for (const example of DATASET) {
+  for (const example of dataset) {
     // Run the same input text with this variant's options.
     const flags = analyzeAuditFlags(example.text, variant.options);
     const predictedRuleIds = new Set(flags.map((flag) => flag.id));
     const expectedRuleIds = new Set(example.expectedRuleIds);
+    const scoreInMetrics = example.scoreInMetrics !== false;
 
-    const { tp, fp, fn } = scoreRulePresence(predictedRuleIds, expectedRuleIds);
-    // Aggregate confusion counts so we can compute one macro view per variant.
-    tpTotal += tp;
-    fpTotal += fp;
-    fnTotal += fn;
+    if (scoreInMetrics) {
+      const { tp, fp, fn } = scoreRulePresence(predictedRuleIds, expectedRuleIds);
+      // Aggregate confusion counts so we can compute one macro view per variant.
+      tpTotal += tp;
+      fpTotal += fp;
+      fnTotal += fn;
+    }
 
     // RAG accuracy is tracked separately from rule-level precision/recall/F1.
     const ragFlag = flags.find((flag) => flag.id === 'rag-status');
     const predictedRag = ragFlag?.evidence?.ragStatus || null;
 
-    if (example.expectedRagStatus) {
+    if (scoreInMetrics && example.expectedRagStatus) {
       ragCases += 1;
       if (predictedRag === example.expectedRagStatus) {
         ragCorrect += 1;
@@ -230,7 +313,8 @@ function runVariant(variant) {
       expectedRuleIds: [...expectedRuleIds],
       predictedRuleIds: [...predictedRuleIds],
       expectedRagStatus: example.expectedRagStatus || null,
-      predictedRagStatus: predictedRag
+      predictedRagStatus: predictedRag,
+      scoreInMetrics
     });
   }
 
@@ -307,7 +391,7 @@ function getRuleToggleSummary(options) {
   return parts.join(', ');
 }
 
-function buildDetailedMarkdownReport(results, createdAtIso) {
+function buildDetailedMarkdownReport(results, createdAtIso, dataset, randomCaseMeta) {
   // Baseline is used as the reference point for all delta metrics.
   const baseline = results.find((result) => result.id === 'baseline') || results[0];
   const lines = [];
@@ -315,9 +399,25 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
   lines.push('# Ablation Study Detailed Report');
   lines.push('');
   lines.push(`Generated: ${createdAtIso}`);
-  lines.push(`Dataset size: ${DATASET.length}`);
+  lines.push(`Dataset size: ${dataset.length}`);
   lines.push(`Variants tested: ${results.length}`);
   lines.push('');
+  if (randomCaseMeta) {
+    lines.push('## Random Uploaded PDF Case');
+    lines.push('');
+    lines.push(`- filename: ${randomCaseMeta.filename}`);
+    lines.push(`- included in run: ${randomCaseMeta.included}`);
+    if (randomCaseMeta.reason) {
+      lines.push(`- reason (if not included): ${randomCaseMeta.reason}`);
+    }
+    if (randomCaseMeta.extractedChars !== undefined) {
+      lines.push(`- extracted characters: ${randomCaseMeta.extractedChars}`);
+    }
+    if (randomCaseMeta.pages !== undefined && randomCaseMeta.pages !== null) {
+      lines.push(`- pages: ${randomCaseMeta.pages}`);
+    }
+    lines.push('');
+  }
   lines.push('## What This Study Is Doing');
   lines.push('');
   lines.push('This study evaluates audit-rule contribution by disabling one rule (or rule group) at a time and comparing output to labeled expectations.');
@@ -330,9 +430,10 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
   lines.push('');
   lines.push('## Dataset Cases');
   lines.push('');
-  for (const sample of DATASET) {
+  for (const sample of dataset) {
     const expectedRagText = sample.expectedRagStatus ? `, expected RAG=${sample.expectedRagStatus}` : '';
-    lines.push(`- ${sample.id}: expected rules=[${sample.expectedRuleIds.join(', ')}]${expectedRagText}`);
+    const scoringTag = sample.scoreInMetrics === false ? ' (unscored)' : '';
+    lines.push(`- ${sample.id}: expected rules=[${sample.expectedRuleIds.join(', ')}]${expectedRagText}${scoringTag}`);
   }
   lines.push('');
   lines.push('## Variant Summary');
@@ -456,7 +557,8 @@ function buildDetailedMarkdownReport(results, createdAtIso) {
         const ragInfo = row.expectedRagStatus
           ? ` | RAG expected=${row.expectedRagStatus}, predicted=${row.predictedRagStatus ?? 'null'}`
           : '';
-        lines.push(`- ${row.caseId}: missing=[${missingRules.join(', ')}], unexpected=[${unexpectedRules.join(', ')}]${ragInfo}`);
+          const scoreTag = row.scoreInMetrics ? '' : ' | unscored case';
+          lines.push(`- ${row.caseId}: missing=[${missingRules.join(', ')}], unexpected=[${unexpectedRules.join(', ')}]${ragInfo}${scoreTag}`);
       }
     }
 
@@ -501,17 +603,23 @@ function printSummaryTable(results) {
 }
 
 function main() {
+  return mainAsync();
+}
+
+async function mainAsync() {
   // Step 1: make sure output directory exists.
   ensureResultsDir();
 
+  const { dataset, randomCaseMeta } = await buildDataset();
+
   console.log('Running ablation study using a fixed audit dataset...');
-  console.log(`Cases: ${DATASET.length}`);
+  console.log(`Cases: ${dataset.length}`);
   console.log(`Variants: ${VARIANTS.length}`);
 
   // Step 2: run each variant and collect its metrics.
   const results = [];
   for (const variant of VARIANTS) {
-    results.push(runVariant(variant));
+    results.push(runVariant(variant, dataset));
   }
 
   // Step 3: print terminal summary for quick review.
@@ -530,12 +638,13 @@ function main() {
   const payload = {
     // Include dataset metadata so downstream analysis knows exactly what was scored.
     createdAt,
-    datasetSize: DATASET.length,
+    datasetSize: dataset.length,
     targetRuleIds: TARGET_RULE_IDS,
+    randomCaseMeta,
     variants: results
   };
 
-  const detailedMarkdown = buildDetailedMarkdownReport(results, createdAt);
+  const detailedMarkdown = buildDetailedMarkdownReport(results, createdAt, dataset, randomCaseMeta);
 
   // Step 5: save timestamped reports.
   fs.writeFileSync(jsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
@@ -556,4 +665,7 @@ function main() {
   console.log(`- ${latestMarkdownPath}`);
 }
 
-main();
+main().catch((error) => {
+  console.error('Ablation study failed:', error);
+  process.exitCode = 1;
+});

@@ -579,7 +579,7 @@ def analyze_document(request: TextRequest):
     summary = summary_result["summary"]
     summary_evaluation = summary_result["evaluation_payload"]
 
-    # ========== STEP 5 P2: Build Explainability Trace ==========
+    # ========== STEP 5 The Sequal :) Build Explainability Trace ==========
     decision_trace = build_decision_trace(
         summary_result=summary_result,
         entities=non_money_entities,

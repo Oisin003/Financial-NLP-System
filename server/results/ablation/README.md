@@ -17,6 +17,7 @@ It does this by comparing:
 
 - `baseline` (all rules enabled)
 - `no_*` variants (one rule or rule group disabled)
+- Plus one random uploaded PDF from `server/uploads/documents/` on each run (included as an unscored case when no labels exist)
 
 ## How To Run
 
@@ -60,5 +61,7 @@ Use `baseline` as your reference row.
 ## Notes
 
 - These results are only as good as the labeled dataset in `server/scripts/runAblationStudy.js`.
+- Each run also samples one random uploaded PDF for real-document visibility.
+- The sampled uploaded PDF is unscored by default because it has no ground-truth labels.
 - Keep the dataset stable when comparing model/rule changes over time.
 - Add new labeled cases if you want stronger confidence before changing production rules.

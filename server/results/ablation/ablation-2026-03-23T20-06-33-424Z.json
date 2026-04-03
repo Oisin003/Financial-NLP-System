@@ -1,6 +1,6 @@
 {
-  "createdAt": "2026-03-23T20:07:26.960Z",
-  "datasetSize": 7,
+  "createdAt": "2026-03-23T20:06:33.424Z",
+  "datasetSize": 6,
   "targetRuleIds": [
     "rag-status",
     "incomplete-data",
@@ -10,10 +10,8 @@
   ],
   "randomCaseMeta": {
     "filename": "1773438726163-414189503-IRE_Example_01.pdf",
-    "included": true,
-    "reason": null,
-    "extractedChars": 0,
-    "pages": 30
+    "included": false,
+    "reason": "insufficient-text"
   },
   "variants": [
     {
@@ -28,7 +26,7 @@
         "tp": 9,
         "fp": 0,
         "fn": 0,
-        "durationMs": 27
+        "durationMs": 24
       },
       "cases": [
         {
@@ -40,8 +38,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "turnover_red",
@@ -52,8 +49,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "red",
-          "predictedRagStatus": "red",
-          "scoreInMetrics": true
+          "predictedRagStatus": "red"
         },
         {
           "caseId": "debt_burden_amber",
@@ -66,8 +62,7 @@
             "debt-burden"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "gross_margin_red",
@@ -80,8 +75,7 @@
             "gross-margin-deterioration"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "going_concern_high",
@@ -94,8 +88,7 @@
             "going-concern-risk"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "incomplete_data",
@@ -106,16 +99,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     },
@@ -133,7 +117,7 @@
         "tp": 8,
         "fp": 0,
         "fn": 1,
-        "durationMs": 1
+        "durationMs": 0
       },
       "cases": [
         {
@@ -145,8 +129,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "turnover_red",
@@ -157,8 +140,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "red",
-          "predictedRagStatus": "red",
-          "scoreInMetrics": true
+          "predictedRagStatus": "red"
         },
         {
           "caseId": "debt_burden_amber",
@@ -170,8 +152,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "gross_margin_red",
@@ -184,8 +165,7 @@
             "gross-margin-deterioration"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "going_concern_high",
@@ -198,8 +178,7 @@
             "going-concern-risk"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "incomplete_data",
@@ -210,16 +189,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     },
@@ -249,8 +219,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "turnover_red",
@@ -261,8 +230,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "red",
-          "predictedRagStatus": "red",
-          "scoreInMetrics": true
+          "predictedRagStatus": "red"
         },
         {
           "caseId": "debt_burden_amber",
@@ -275,8 +243,7 @@
             "debt-burden"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "gross_margin_red",
@@ -288,8 +255,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "going_concern_high",
@@ -302,8 +268,7 @@
             "going-concern-risk"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "incomplete_data",
@@ -314,16 +279,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     },
@@ -341,7 +297,7 @@
         "tp": 8,
         "fp": 0,
         "fn": 1,
-        "durationMs": 0
+        "durationMs": 1
       },
       "cases": [
         {
@@ -353,8 +309,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "turnover_red",
@@ -365,8 +320,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "red",
-          "predictedRagStatus": "red",
-          "scoreInMetrics": true
+          "predictedRagStatus": "red"
         },
         {
           "caseId": "debt_burden_amber",
@@ -379,8 +333,7 @@
             "debt-burden"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "gross_margin_red",
@@ -393,8 +346,7 @@
             "gross-margin-deterioration"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "going_concern_high",
@@ -406,8 +358,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "incomplete_data",
@@ -418,16 +369,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     },
@@ -445,7 +387,7 @@
         "tp": 4,
         "fp": 0,
         "fn": 5,
-        "durationMs": 1
+        "durationMs": 0
       },
       "cases": [
         {
@@ -455,8 +397,7 @@
           ],
           "predictedRuleIds": [],
           "expectedRagStatus": "green",
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
+          "predictedRagStatus": null
         },
         {
           "caseId": "turnover_red",
@@ -465,8 +406,7 @@
           ],
           "predictedRuleIds": [],
           "expectedRagStatus": "red",
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
+          "predictedRagStatus": null
         },
         {
           "caseId": "debt_burden_amber",
@@ -478,8 +418,7 @@
             "debt-burden"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
+          "predictedRagStatus": null
         },
         {
           "caseId": "gross_margin_red",
@@ -491,8 +430,7 @@
             "gross-margin-deterioration"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
+          "predictedRagStatus": null
         },
         {
           "caseId": "going_concern_high",
@@ -504,8 +442,7 @@
             "going-concern-risk"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
+          "predictedRagStatus": null
         },
         {
           "caseId": "incomplete_data",
@@ -516,16 +453,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     },
@@ -557,8 +485,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "turnover_red",
@@ -569,8 +496,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "red",
-          "predictedRagStatus": "red",
-          "scoreInMetrics": true
+          "predictedRagStatus": "red"
         },
         {
           "caseId": "debt_burden_amber",
@@ -582,8 +508,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "gross_margin_red",
@@ -595,8 +520,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "going_concern_high",
@@ -608,8 +532,7 @@
             "rag-status"
           ],
           "expectedRagStatus": "green",
-          "predictedRagStatus": "green",
-          "scoreInMetrics": true
+          "predictedRagStatus": "green"
         },
         {
           "caseId": "incomplete_data",
@@ -620,16 +543,7 @@
             "incomplete-data"
           ],
           "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": true
-        },
-        {
-          "caseId": "random_uploaded_pdf__1773438726163-414189503-IRE_Example_01.pdf",
-          "expectedRuleIds": [],
-          "predictedRuleIds": [],
-          "expectedRagStatus": null,
-          "predictedRagStatus": null,
-          "scoreInMetrics": false
+          "predictedRagStatus": null
         }
       ]
     }
