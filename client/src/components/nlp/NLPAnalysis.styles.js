@@ -59,6 +59,28 @@ export const styles = {
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: '10px'
   },
+  summaryToggleRow: {
+    marginTop: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  summaryToggleNote: {
+    fontSize: '12px',
+    color: '#475569'
+  },
+  summaryToggleBtn: {
+    background: '#0f766e',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px 10px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
   evaluationCard: {
     background: 'white',
     borderRadius: '6px',
@@ -77,6 +99,103 @@ export const styles = {
     fontSize: '16px',
     color: '#0f172a',
     fontWeight: '700'
+  },
+  summaryDetailGrid: {
+    marginTop: '12px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+    gap: '10px'
+  },
+  summaryDetailCard: {
+    background: '#eef6ff',
+    border: '1px solid #cfe5ff',
+    borderRadius: '6px',
+    padding: '10px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  summaryDetailLabel: {
+    fontSize: '12px',
+    color: '#1d4e89',
+    fontWeight: '600'
+  },
+  summaryDetailValue: {
+    fontSize: '17px',
+    color: '#0f172a',
+    fontWeight: '700'
+  },
+  summaryMetaSection: {
+    marginTop: '12px',
+    background: 'white',
+    borderRadius: '6px',
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0'
+  },
+  summaryMetaTitle: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: '8px'
+  },
+  summaryMetaTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  summaryMetaTag: {
+    background: '#f1f5f9',
+    border: '1px solid #cbd5e1',
+    borderRadius: '999px',
+    padding: '3px 10px',
+    fontSize: '12px',
+    color: '#1e293b',
+    fontWeight: '600'
+  },
+  summarySentenceList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  summarySentenceItem: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'flex-start',
+    background: '#f8fafc',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
+    padding: '8px 10px',
+    lineHeight: '1.5',
+    color: '#1f2937'
+  },
+  summaryReasonList: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  summaryReasonItem: {
+    background: '#f8fafc',
+    border: '1px solid #dbe7f5',
+    borderRadius: '6px',
+    padding: '8px 10px',
+    color: '#1e293b',
+    fontSize: '13px',
+    lineHeight: '1.5'
+  },
+  summaryTechnicalLine: {
+    marginTop: '6px',
+    fontSize: '12px',
+    color: '#334155',
+    background: '#eef2f7',
+    borderRadius: '4px',
+    padding: '4px 6px'
+  },
+  summarySentenceIndex: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#0d6efd',
+    minWidth: '26px'
   },
   traceRuleBox: {
     marginTop: '12px',
@@ -118,6 +237,12 @@ export const styles = {
     color: '#1f2937',
     lineHeight: '1.5',
     fontSize: '14px'
+  },
+  tracePlainReason: {
+    marginTop: '8px',
+    fontSize: '13px',
+    color: '#334155',
+    lineHeight: '1.45'
   },
   auditList: {
     marginTop: '15px',

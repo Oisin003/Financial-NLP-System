@@ -229,20 +229,143 @@ def tokenize_for_evaluation(text):
         return []
     return re.findall(r"[A-Za-z0-9£$€]+(?:[-'][A-Za-z0-9]+)?", text.lower())
 
-def build_summary_evaluation_payload(summary_text, source_sentences, selected_sentence_ids):
+def build_sentence_selection_reason(sentence_trace_item):
+    scoring_features = sentence_trace_item.get("scoring_features", {})
+    reasons = []
+
+    figure_hits = scoring_features.get("figure_hits", 0)
+    entity_hits = scoring_features.get("entity_hits", 0)
+    keyword_hits = scoring_features.get("keyword_hits", 0)
+    contains_number = scoring_features.get("contains_number", False)
+
+    if figure_hits > 0:
+        reasons.append(f"Contains {figure_hits} financial figure match(es)")
+    if entity_hits > 0:
+        reasons.append(f"Contains {entity_hits} named entity hit(s)")
+    if keyword_hits > 0:
+        reasons.append(f"Contains {keyword_hits} high-value keyword hit(s)")
+    if contains_number and figure_hits == 0:
+        reasons.append("Contains numeric evidence")
+
+    if not reasons:
+        reasons.append("Ranked highly in sentence graph centrality")
+
+    final_score = sentence_trace_item.get("final_score")
+    if isinstance(final_score, (int, float)):
+        reasons.append(f"Final weighted score: {final_score:.4f}")
+
+    return '; '.join(reasons)
+
+
+def build_summary_evaluation_payload(summary_text, source_sentences, selected_sentence_ids, entities=None, financial_figures=None, sentence_trace=None):
+    entities = entities or []
+    financial_figures = financial_figures or []
+    sentence_trace = sentence_trace or []
+
     selected_sentences = [
         sentence["text"]
         for sentence in source_sentences
         if sentence["id"] in selected_sentence_ids
     ]
 
+    source_tokens = tokenize_for_evaluation(' '.join(sentence["text"] for sentence in source_sentences))
+    candidate_tokens = tokenize_for_evaluation(summary_text)
+
+    source_sentence_count = len(source_sentences)
+    selected_sentence_count = len(selected_sentence_ids)
+    source_token_count = len(source_tokens)
+    candidate_token_count = len(candidate_tokens)
+
+    compression_ratio = round(candidate_token_count / source_token_count, 4) if source_token_count > 0 else 0.0
+    sentence_coverage_ratio = round(selected_sentence_count / source_sentence_count, 4) if source_sentence_count > 0 else 0.0
+
+    key_entities = []
+    seen_entities = set()
+    for entity in entities:
+        entity_text = entity.get("text", "").strip()
+        if not entity_text:
+            continue
+        normalized = entity_text.lower()
+        if normalized in seen_entities:
+            continue
+        seen_entities.add(normalized)
+        key_entities.append(entity_text)
+        if len(key_entities) >= 8:
+            break
+
+    key_financial_figures = []
+    seen_figures = set()
+    for figure in financial_figures:
+        figure_text = figure.get("text", "").strip()
+        if not figure_text:
+            continue
+        normalized = re.sub(r'\s+', '', figure_text.lower())
+        if normalized in seen_figures:
+            continue
+        seen_figures.add(normalized)
+        key_financial_figures.append(figure_text)
+        if len(key_financial_figures) >= 8:
+            break
+
+    selected_sentence_explanations = []
+    selected_id_set = set(selected_sentence_ids)
+    for sentence in sentence_trace:
+        sentence_id = sentence.get("id")
+        if sentence_id not in selected_id_set:
+            continue
+
+        selected_sentence_explanations.append({
+            "sentence_id": sentence_id,
+            "text": sentence.get("text", ""),
+            "why_selected": build_sentence_selection_reason(sentence),
+            "signals": {
+                "figure_hits": sentence.get("scoring_features", {}).get("figure_hits", 0),
+                "entity_hits": sentence.get("scoring_features", {}).get("entity_hits", 0),
+                "keyword_hits": sentence.get("scoring_features", {}).get("keyword_hits", 0),
+                "contains_number": sentence.get("scoring_features", {}).get("contains_number", False)
+            }
+        })
+
+    key_entity_highlights = [
+        {
+            "text": entity_text,
+            "why_highlighted": "Appears in extraction signals used during summary ranking"
+        }
+        for entity_text in key_entities
+    ]
+
+    key_figure_highlights = [
+        {
+            "text": figure_text,
+            "why_highlighted": "Matched financial amount near accounting/finance context"
+        }
+        for figure_text in key_financial_figures
+    ]
+
     return {
         "candidate_summary": summary_text,
         "candidate_sentences": selected_sentences,
-        "candidate_tokens": tokenize_for_evaluation(summary_text),
-        "source_sentence_count": len(source_sentences),
-        "source_tokens": tokenize_for_evaluation(' '.join(sentence["text"] for sentence in source_sentences)),
+        "candidate_tokens": candidate_tokens,
+        "source_sentence_count": source_sentence_count,
+        "source_tokens": source_tokens,
         "selected_sentence_ids": selected_sentence_ids,
+        "detail": {
+            "selected_sentence_count": selected_sentence_count,
+            "source_token_count": source_token_count,
+            "candidate_token_count": candidate_token_count,
+            "compression_ratio": compression_ratio,
+            "sentence_coverage_ratio": sentence_coverage_ratio,
+            "key_entities": key_entities,
+            "key_financial_figures": key_financial_figures,
+            "key_entity_highlights": key_entity_highlights,
+            "key_figure_highlights": key_figure_highlights,
+            "selection_explanations": selected_sentence_explanations,
+            "reader_guidance": [
+                "Use this summary as an extractive digest of the most relevant sentences.",
+                "Review key figures and entities to verify that critical context is preserved.",
+                "Use the explainability trace for sentence-level scoring details."
+            ]
+        },
         "metrics_ready": {
             "rouge": ["rouge-1", "rouge-2", "rouge-l"],
             "bleu": ["bleu-1", "bleu-2", "bleu-3", "bleu-4"]
@@ -263,7 +386,14 @@ def textrank_summary(text, entities=None, financial_figures=None, max_sentences=
             "summary": fallback,
             "selected_sentence_ids": [],
             "sentence_trace": [],
-            "evaluation_payload": build_summary_evaluation_payload(fallback, [], [])
+            "evaluation_payload": build_summary_evaluation_payload(
+                fallback,
+                [],
+                [],
+                entities=entities,
+                financial_figures=financial_figures,
+                sentence_trace=[]
+            )
         }
     if len(sentences) <= max_sentences:
         selected_ids = [sentence["id"] for sentence in sentences]
@@ -295,7 +425,14 @@ def textrank_summary(text, entities=None, financial_figures=None, max_sentences=
             "summary": summary_text,
             "selected_sentence_ids": selected_ids,
             "sentence_trace": sentence_trace,
-            "evaluation_payload": build_summary_evaluation_payload(summary_text, sentences, selected_ids)
+            "evaluation_payload": build_summary_evaluation_payload(
+                summary_text,
+                sentences,
+                selected_ids,
+                entities=entities,
+                financial_figures=financial_figures,
+                sentence_trace=sentence_trace
+            )
         }
 
     sentence_texts = [sentence["text"] for sentence in sentences]
@@ -387,7 +524,14 @@ def textrank_summary(text, entities=None, financial_figures=None, max_sentences=
         "summary": summary_text,
         "selected_sentence_ids": selected_ids,
         "sentence_trace": sentence_trace,
-        "evaluation_payload": build_summary_evaluation_payload(summary_text, sentences, selected_ids)
+        "evaluation_payload": build_summary_evaluation_payload(
+            summary_text,
+            sentences,
+            selected_ids,
+            entities=entities,
+            financial_figures=financial_figures,
+            sentence_trace=sentence_trace
+        )
     }
 
 def build_decision_trace(summary_result, entities, financial_figures, topic_words):
