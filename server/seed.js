@@ -3,6 +3,7 @@
  *
  * Creates default users on first startup.
  * Safe to call every time the server starts — skips any user that already exists.
+ * This was primarly done for testing purposes - and because I could never remember my password
  *
  * Default accounts created:
  *   Admin  | admin@achilles.com | Admin@123
