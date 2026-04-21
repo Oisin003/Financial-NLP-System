@@ -19,6 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import { analyzeAuditFlags } from '../services/nlpProcessor.js';
 
@@ -663,6 +664,19 @@ async function mainAsync() {
   console.log(`- ${latestJsonPath}`);
   console.log(`- ${latestCsvPath}`);
   console.log(`- ${latestMarkdownPath}`);
+
+  // Step 7: generate the HTML chart from the results we just saved.
+  const chartScript = path.join(__dirname, 'generateAblationChart.js');
+  const chartOut = path.join(RESULTS_DIR, 'latest-chart.html');
+  const chartResult = spawnSync(process.execPath, [chartScript, latestJsonPath], {
+    stdio: 'inherit',
+    env: process.env
+  });
+  if (chartResult.status === 0) {
+    console.log(`- ${chartOut}`);
+  } else {
+    console.warn('Chart generation failed; run "npm run ablation:chart" manually.');
+  }
 }
 
 main().catch((error) => {

@@ -7,6 +7,7 @@ L00172671 - Oisin Gibson
 ### Prerequisites
 - [Node.js](https://nodejs.org/) v18 or higher
 - [Python](https://www.python.org/downloads/) 3.8 or higher (must be on your system PATH)
+- No global Tesseract install required (the app uses bundled runtimes)
 
 ### First-time setup
 Clone the repo, then run:
@@ -35,6 +36,22 @@ This starts all four services together:
 | API server | http://localhost:8080 |
 | NLP microservice | http://localhost:8000 |
 | Tika (PDF extraction) | http://localhost:9998 |
+
+### Analysis scripts (optional)
+Run these from [server](server):
+
+```bash
+npm run ablation
+npm run ablation:chart
+npm run nlp:insights
+```
+
+- `npm run ablation`: runs the audit-rule ablation study and writes timestamped results to [server/results/ablation](server/results/ablation)
+- `npm run ablation:chart`: generates/opens [server/results/ablation/latest-chart.html](server/results/ablation/latest-chart.html)
+- `npm run nlp:insights`: generates a D3 dashboard at [server/results/insights/latest-insights.html](server/results/insights/latest-insights.html)
+  - default: loads the most recent processed document (with entity data) from `server/database.sqlite`
+  - specific doc: `npm run nlp:insights -- --doc 8`
+  - JSON input: `npm run nlp:insights -- path/to/nlp-response.json`
 
 ### Default accounts
 These are created automatically on first run:
@@ -80,6 +97,12 @@ Large generated/runtime/vendor folders are summarized at the end for readability
 - [server/pdf-diagnostic.js](server/pdf-diagnostic.js): PDF diagnostics utility.
 - [server/tika-config.xml](server/tika-config.xml): Tika OCR configuration.
 - [server/contracts/nlpResults.json](server/contracts/nlpResults.json): NLP result contract/schema.
+
+#### server/scripts
+- [server/scripts/runAblationStudy.js](server/scripts/runAblationStudy.js): Runs ablation variants and writes metrics output files.
+- [server/scripts/generateAblationChart.js](server/scripts/generateAblationChart.js): Builds the HTML visualization for ablation results.
+- [server/scripts/generateNlpInsightsDashboard.js](server/scripts/generateNlpInsightsDashboard.js): Builds D3 ROUGE/BLEU, NER, and anomaly dashboard output.
+- [server/scripts/showOcrStages.js](server/scripts/showOcrStages.js): Shows OCR extraction/debug stage details.
 
 #### server/models
 - [server/models/User.js](server/models/User.js): User model, auth helpers, password hashing.

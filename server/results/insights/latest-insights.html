@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NLP Insights Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --ink: #1e1f24;
+      --muted: #5c6070;
+      --card: #ffffff;
+      --accent: #1f6feb;
+      --rouge: #e34f6f;
+      --bleu: #3f8efc;
+      --high: #c81e1e;
+      --medium: #d97706;
+      --low: #15803d;
+      --other: #6b7280;
+      --entity-default: #fef3c7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top right, #e7eefc 0%, var(--bg) 45%);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1250px;
+      margin: 28px auto;
+      padding: 0 16px 36px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #243b64 45%, #1f6feb 100%);
+      color: #f8fbff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .hero p {
+      margin: 6px 0;
+      line-height: 1.6;
+      color: #dbeafe;
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(22, 28, 45, 0.08);
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
+    .desc {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    .chart { width: 100%; height: 290px; }
+
+    .entity-sample {
+      background: #fafafa;
+      border: 1px solid #ececec;
+      border-radius: 10px;
+      padding: 12px;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 0.92rem;
+    }
+
+    .entity {
+      border-radius: 4px;
+      padding: 0 4px;
+      border: 1px solid transparent;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      font-size: 0.82rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 99px;
+      padding: 4px 10px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .traffic-row {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 10px 0 6px;
+    }
+
+    .light {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid #d1d5db;
+      background: #f3f4f6;
+      opacity: 0.35;
+      transition: all .25s ease;
+    }
+
+    .light.active { opacity: 1; transform: scale(1.06); }
+    .light.red.active { background: #ef4444; border-color: #dc2626; }
+    .light.amber.active { background: #f59e0b; border-color: #d97706; }
+    .light.green.active { background: #22c55e; border-color: #16a34a; }
+
+    .flag-list {
+      margin-top: 8px;
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid #ececec;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fcfcfd;
+    }
+
+    .flag-item {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #e5e7eb;
+      font-size: 0.88rem;
+    }
+
+    .flag-item:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .badge {
+      display: inline-block;
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-right: 6px;
+    }
+
+    .badge.high { background: #fee2e2; color: #991b1b; }
+    .badge.medium { background: #ffedd5; color: #9a3412; }
+    .badge.low { background: #dcfce7; color: #166534; }
+    .badge.other { background: #e5e7eb; color: #374151; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>NLP Results Dashboard (D3)</h1>
+      <p><strong>Source:</strong> IRE_Example_27.pdf</p>
+      <p><strong>Generated:</strong> 2026-04-21T19:05:53.231Z</p>
+      <p>
+        This dashboard explains three things at once: summary quality (ROUGE/BLEU), entity extraction quality
+        (highlighted NER spans), and audit risk posture (traffic-light + anomaly counts).
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>ROUGE / BLEU Results Graph</h2>
+        <p class="desc">
+          Higher scores mean the generated summary is closer to the reference text.
+          ROUGE is recall-friendly: it rewards covering important source content. BLEU is precision-focused:
+          it rewards exact n-gram phrasing and order, and it penalizes short or generic summaries.
+        </p>
+        <p class="desc">
+          How to read these bars:
+          ROUGE-1 checks single-word overlap, ROUGE-2 checks phrase overlap (two-word sequences),
+          and ROUGE-L checks sentence-level structure via longest common subsequence.
+          BLEU-1 to BLEU-4 become progressively stricter, with BLEU-4 requiring strong multi-word fidelity.
+          A practical signal is "high ROUGE + lower BLEU": content is mostly correct but wording differs.
+          "High ROUGE + high BLEU" usually means both meaning and phrasing are close to reference quality.
+        </p>
+        <svg id="metricChart" class="chart"></svg>
+      </article>
+
+      <article class="card">
+        <h2>NER Output Example (Highlighted Entities)</h2>
+        <p class="desc">
+          Colored spans show entities found in extracted text. Use this to verify whether key organizations,
+          amounts, and dates are being captured in context.
+        </p>
+        <div id="entitySample" class="entity-sample"></div>
+        <div id="entityLegend" class="legend"></div>
+      </article>
+
+      <article class="card">
+        <h2>Traffic-Light Anomaly Output</h2>
+        <p class="desc">
+          The active traffic light shows current RAG status from the audit flags. The bar chart summarizes how many
+          anomalies were high, medium, and low severity.
+        </p>
+        <div class="traffic-row" id="trafficLights">
+          <div class="light red" data-status="red" title="Red"></div>
+          <div class="light amber" data-status="amber" title="Amber"></div>
+          <div class="light green" data-status="green" title="Green"></div>
+        </div>
+        <svg id="anomalyChart" class="chart"></svg>
+      </article>
+
+      <article class="card">
+        <h2>Anomaly Explanation List</h2>
+        <p class="desc">
+          Each anomaly includes severity, rule id, and message. This is the quickest place to explain why the
+          traffic light is red/amber/green for non-technical stakeholders.
+        </p>
+        <div id="flagList" class="flag-list"></div>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const pageData = {"generatedAt":"2026-04-21T19:05:53.231Z","sourceName":"IRE_Example_27.pdf","summaryScores":{"candidateSummary":"The profit for the financial year after providing for depreciation and taxation amounted to €5,754 (2021 - €124,655). At the end of the financial year, the company has assets of €559,535 (2021 - €641,207) and liabilities of €376,117 the company as at the financial year end date and of the profit or loss of the company for the financial year and company at the end of its financial year and of its profit or loss for such a financial year and to otherwise comply with","referenceText":"The profit for the financial year after providing for depreciation and taxation amounted to €5,754 (2021 - €124,655). At the end of the financial year, the company has assets of €559,535 (2021 - €641,207) and liabilities of €376,117 the company as at the financial year end date and of the profit or loss of the company for the financial year and company at the end of its financial year and of its profit or loss for such a financial year and to otherwise comply with","hasReference":true,"rouge":[{"metric":"ROUGE-1 F1","value":100},{"metric":"ROUGE-2 F1","value":100},{"metric":"ROUGE-L F1","value":100}],"bleu":[{"metric":"BLEU-1","value":100},{"metric":"BLEU-2","value":100},{"metric":"BLEU-3","value":100},{"metric":"BLEU-4","value":100}]},"ragStatus":"green","severityCounts":{"high":0,"medium":0,"low":1,"other":0},"auditFlags":[{"id":"rag-status","severity":"low","title":"RAG Status: GREEN","message":"All financial indicators are positive","evidence":{"turnover":1840207,"profitBeforeTax":5754,"netAssets":443543,"turnoverLine":"Turnover 1,840,207 1,955,630","profitBeforeTaxLine":"Profit before taxation 5,754 125,741","netAssetsLine":"(2021 - €443,543). The net assets of the company have decreased by €(14,246).","ragStatus":"green"}}],"entitySample":{"text":"[image: image0.png]Company Number:\nDirectors’ Report and Unaudited Financial Statements\nfor the financial year ended 31 July 2022\njartered Accountant\n2\nCONTENTS\nPage\nDirectors and Other Information 3\nDirectors' Report 4 - 5\nDirectors' Responsibilities Statement 6\nAccountants' Report 7\nProfit and Loss Account 8\nBalance Sheet 9\nStatement of Changes in Equity 10\nNotes to the Financial Statements 11 - 14\nSupplementary Information on Trading Statement 16\n[image: image1.png]I iseacecr OTHER INFORMATION\nDirectors\n(Appointed 25 October 2021)\n(Appointed 25 October 2021)\nCompany Secretary a\nCompany Number | |\nRegistered Office and Business Address _ |\nlarteres \\ccountan\nBankers\n[image: image2.png]assoc eee\nfor the financial year ended 31 July 2022\nThe directors present their report and the unaudited financial statements for the financial year ended 31 July 2022.\nThere has been no significant change in these activities during the financial year ended 31 July 2022.\nResults and Dividends\nThe profit for the financial year after providing for depreciation and taxation amounted to €5,754 (2021 - €124,655).\nThe directors have paid an interim dividend amounting to €20,000 and they do not recommend payment of a final\ndividend.\nAt the end of the financial year, the company has assets of €559,535 (2021 - €641,207) and liabilities of €376,117\n(2021 - €443,543). The net assets of the company have decreased by €(14,246).\nDirectors and Secretary\nThe directors who served throughout the financial year, except as noted, were as follows:\nWe ...20:.: 25 October 2021)\n(Appointed 25 October 2021)\nThe secretary who served throughout the financial year was AS I\nThe directors’ and the secretary's interests in the shares of the company are as follows:\nNumber Number\nHeld At Held At\nName Class of Shares 31/07/22 01/08/21\n| | Ordinary Shares of €1 12,500 12,500\neach\n|| OthEocha Ordinary Shares of €1 12,500 -\neach*\nmE Ordinary Shares of €1 - 12,500\neach\n25,000 25,000\nHE BR 12 0 cirect beneficial interest ","entities":[{"text":"Unaudited Financial Statements","label":"ORG","start_char":57,"end_char":87},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":92,"end_char":129},{"text":"Information 3\nDirectors' Report 4 - 5\nDirectors' Responsibilities Statement 6","label":"LAW","start_char":186,"end_char":263},{"text":"11","label":"CARDINAL","start_char":396,"end_char":398},{"text":"25 October 2021","label":"DATE","start_char":523,"end_char":538},{"text":"25 October 2021","label":"DATE","start_char":551,"end_char":566},{"text":"Registered Office and Business Address","label":"ORG","start_char":607,"end_char":645},{"text":"image2.png]assoc","label":"CARDINAL","start_char":685,"end_char":701},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":710,"end_char":747},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":826,"end_char":863},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":929,"end_char":966},{"text":"the financial year","label":"DATE","start_char":1005,"end_char":1023},{"text":"the financial year","label":"DATE","start_char":1242,"end_char":1260},{"text":"14,246","label":"CARDINAL","start_char":1412,"end_char":1418},{"text":"the financial year","label":"DATE","start_char":1481,"end_char":1499},{"text":"20","label":"CARDINAL","start_char":1541,"end_char":1543},{"text":"25 October 2021","label":"DATE","start_char":1547,"end_char":1562},{"text":"25 October 2021","label":"DATE","start_char":1575,"end_char":1590},{"text":"the financial year","label":"DATE","start_char":1628,"end_char":1646},{"text":"31/07/22","label":"CARDINAL","start_char":1797,"end_char":1805},{"text":"12,500","label":"CARDINAL","start_char":1848,"end_char":1854},{"text":"OthEocha Ordinary Shares","label":"ORG","start_char":1863,"end_char":1887},{"text":"25,000 25,000","label":"CARDINAL","start_char":1948,"end_char":1961},{"text":"12","label":"CARDINAL","start_char":1968,"end_char":1970}]},"entities":[{"text":"Unaudited Financial Statements","label":"ORG","start_char":57,"end_char":87},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":92,"end_char":129},{"text":"Information 3\nDirectors' Report 4 - 5\nDirectors' Responsibilities Statement 6","label":"LAW","start_char":186,"end_char":263},{"text":"11","label":"CARDINAL","start_char":396,"end_char":398},{"text":"25 October 2021","label":"DATE","start_char":523,"end_char":538},{"text":"25 October 2021","label":"DATE","start_char":551,"end_char":566},{"text":"Registered Office and Business Address","label":"ORG","start_char":607,"end_char":645},{"text":"image2.png]assoc","label":"CARDINAL","start_char":685,"end_char":701},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":710,"end_char":747},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":826,"end_char":863},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":929,"end_char":966},{"text":"the financial year","label":"DATE","start_char":1005,"end_char":1023},{"text":"the financial year","label":"DATE","start_char":1242,"end_char":1260},{"text":"14,246","label":"CARDINAL","start_char":1412,"end_char":1418},{"text":"the financial year","label":"DATE","start_char":1481,"end_char":1499},{"text":"20","label":"CARDINAL","start_char":1541,"end_char":1543},{"text":"25 October 2021","label":"DATE","start_char":1547,"end_char":1562},{"text":"25 October 2021","label":"DATE","start_char":1575,"end_char":1590},{"text":"the financial year","label":"DATE","start_char":1628,"end_char":1646},{"text":"31/07/22","label":"CARDINAL","start_char":1797,"end_char":1805},{"text":"12,500","label":"CARDINAL","start_char":1848,"end_char":1854},{"text":"OthEocha Ordinary Shares","label":"ORG","start_char":1863,"end_char":1887},{"text":"25,000 25,000","label":"CARDINAL","start_char":1948,"end_char":1961},{"text":"12","label":"CARDINAL","start_char":1968,"end_char":1970},{"text":"the beginning or end","label":"DATE","start_char":2032,"end_char":2052},{"text":"the financial\nyear","label":"DATE","start_char":2056,"end_char":2074},{"text":"31 July 2022","label":"DATE","start_char":2123,"end_char":2135},{"text":"Constitution","label":"LAW","start_char":2252,"end_char":2264},{"text":"the financial year-end","label":"DATE","start_char":2639,"end_char":2661},{"text":"the Taxes Consolidation Act","label":"LAW","start_char":2732,"end_char":2759},{"text":"1997","label":"DATE","start_char":2761,"end_char":2765},{"text":"DIRECTORS","label":"PERSON","start_char":2767,"end_char":2776},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":2789,"end_char":2826},{"text":"5","label":"CARDINAL","start_char":2827,"end_char":2828},{"text":"281","label":"CARDINAL","start_char":2928,"end_char":2931},{"text":"285","label":"CARDINAL","start_char":2935,"end_char":2938},{"text":"the Companies Act\n","label":"LAW","start_char":2942,"end_char":2960},{"text":"2014","label":"DATE","start_char":2960,"end_char":2964},{"text":"February 2023","label":"DATE","start_char":3217,"end_char":3230},{"text":"February 2023","label":"DATE","start_char":3234,"end_char":3247},{"text":"DIRECTORS","label":"PERSON","start_char":3248,"end_char":3257},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":3290,"end_char":3327},{"text":"6","label":"CARDINAL","start_char":3328,"end_char":3329},{"text":"Irish","label":"NORP","start_char":3455,"end_char":3460},{"text":"Irish","label":"NORP","start_char":3482,"end_char":3487},{"text":"each financial year","label":"DATE","start_char":3559,"end_char":3578},{"text":"the Companies Act 2014","label":"LAW","start_char":3676,"end_char":3698},{"text":"FRS","label":"ORG","start_char":3703,"end_char":3706},{"text":"The Financial Reporting Standard","label":"WORK_OF_ART","start_char":3712,"end_char":3744},{"text":"UK","label":"GPE","start_char":3763,"end_char":3765},{"text":"Republic of Ireland","label":"GPE","start_char":3770,"end_char":3789},{"text":"Section 1A","label":"LAW","start_char":3801,"end_char":3811},{"text":"the Financial Reporting Council","label":"ORG","start_char":3840,"end_char":3871},{"text":"the financial year end date","label":"DATE","start_char":4081,"end_char":4108},{"text":"the financial year","label":"DATE","start_char":4154,"end_char":4172},{"text":"the Companies Act 2014","label":"LAW","start_char":4199,"end_char":4221},{"text":"the Companies Act 2014","label":"LAW","start_char":5260,"end_char":5282},{"text":"February 2023","label":"DATE","start_char":5510,"end_char":5523},{"text":"February 2023","label":"DATE","start_char":5527,"end_char":5540},{"text":"the Board of Directors","label":"ORG","start_char":5584,"end_char":5606},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":5655,"end_char":5692},{"text":"the Companies Act\n","label":"LAW","start_char":5789,"end_char":5807},{"text":"2014","label":"DATE","start_char":5807,"end_char":5811},{"text":"the financial year ended 31\nJuly 2022","label":"DATE","start_char":5892,"end_char":5929},{"text":"the Statement of Changes in Equity","label":"ORG","start_char":5993,"end_char":6027},{"text":"the Board of Directors","label":"ORG","start_char":6166,"end_char":6188},{"text":"the Board of Directors","label":"ORG","start_char":6405,"end_char":6427},{"text":"Board of Directors","label":"ORG","start_char":6633,"end_char":6651},{"text":"Accountants Ireland","label":"PERSON","start_char":6781,"end_char":6800},{"text":"Ireland","label":"PERSON","start_char":6880,"end_char":6887},{"text":"the financial year","label":"DATE","start_char":7234,"end_char":7252},{"text":"Merl For","label":"PERSON","start_char":7344,"end_char":7352},{"text":"John Costello","label":"PERSON","start_char":7580,"end_char":7593},{"text":"Accountant\n","label":"ORG","start_char":7623,"end_char":7634},{"text":"February 2023","label":"DATE","start_char":7637,"end_char":7650},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":7679,"end_char":7716},{"text":"2022","label":"DATE","start_char":7717,"end_char":7721},{"text":"11","label":"CARDINAL","start_char":7756,"end_char":7758},{"text":"14","label":"CARDINAL","start_char":7762,"end_char":7764},{"text":"8","label":"CARDINAL","start_char":7803,"end_char":7804},{"text":"1,840,207 1,955,630","label":"CARDINAL","start_char":7814,"end_char":7833},{"text":"814,076","label":"CARDINAL","start_char":7849,"end_char":7856},{"text":"540,483","label":"CARDINAL","start_char":7859,"end_char":7866},{"text":"1,026,131 1,415,147","label":"CARDINAL","start_char":7897,"end_char":7916},{"text":"976,304","label":"CARDINAL","start_char":7942,"end_char":7949},{"text":"1,212,166","label":"CARDINAL","start_char":7952,"end_char":7961},{"text":"3","label":"CARDINAL","start_char":7996,"end_char":7997},{"text":"49,827 202,981","label":"CARDINAL","start_char":7998,"end_char":8012},{"text":"4","label":"CARDINAL","start_char":8031,"end_char":8032},{"text":"36,473","label":"CARDINAL","start_char":8034,"end_char":8040},{"text":"77,240","label":"CARDINAL","start_char":8043,"end_char":8049},{"text":"13,354 125,741","label":"CARDINAL","start_char":8090,"end_char":8104},{"text":"5","label":"CARDINAL","start_char":8143,"end_char":8144},{"text":"7,600","label":"CARDINAL","start_char":8146,"end_char":8151},{"text":"5,754 125,741","label":"CARDINAL","start_char":8194,"end_char":8207},{"text":"1,086","label":"CARDINAL","start_char":8225,"end_char":8230},{"text":"the financial year","label":"DATE","start_char":8259,"end_char":8277},{"text":"5,754 124,655","label":"CARDINAL","start_char":8278,"end_char":8291},{"text":"5,754 124,655","label":"CARDINAL","start_char":8335,"end_char":8348},{"text":"═══════ ═══════\nBALANCE","label":"PERSON","start_char":8349,"end_char":8372},{"text":"31 July 2022","label":"DATE","start_char":8385,"end_char":8397},{"text":"11","label":"CARDINAL","start_char":8417,"end_char":8419},{"text":"14","label":"CARDINAL","start_char":8423,"end_char":8425},{"text":"9","label":"CARDINAL","start_char":8464,"end_char":8465},{"text":"2022 2021","label":"DATE","start_char":8466,"end_char":8475},{"text":"7 146,996","label":"CARDINAL","start_char":8515,"end_char":8524},{"text":"8","label":"CARDINAL","start_char":8571,"end_char":8572},{"text":"45,050 61,144","label":"CARDINAL","start_char":8573,"end_char":8586},{"text":"9 287,827","label":"CARDINAL","start_char":8595,"end_char":8604},{"text":"412,539 402,868","label":"CARDINAL","start_char":8669,"end_char":8684},{"text":"one year 10","label":"DATE","start_char":8739,"end_char":8750},{"text":"344,105","label":"CARDINAL","start_char":8752,"end_char":8759},{"text":"381,219","label":"CARDINAL","start_char":8762,"end_char":8769},{"text":"Net Current Assets","label":"WORK_OF_ART","start_char":8787,"end_char":8805},{"text":"68,434 21,649","label":"CARDINAL","start_char":8806,"end_char":8819},{"text":"Total Assets less Current Liabilities","label":"ORG","start_char":8836,"end_char":8873},{"text":"215,430 259,988","label":"CARDINAL","start_char":8874,"end_char":8889},{"text":"more than one year 11","label":"DATE","start_char":8927,"end_char":8948},{"text":"32,012","label":"CARDINAL","start_char":8950,"end_char":8956},{"text":"62,324","label":"CARDINAL","start_char":8959,"end_char":8965},{"text":"183,418 197,664","label":"CARDINAL","start_char":8994,"end_char":9009},{"text":"═══════ ═══════\nCapital","label":"PERSON","start_char":9010,"end_char":9033},{"text":"25,000 25,000","label":"CARDINAL","start_char":9091,"end_char":9104},{"text":"158,418 172,664","label":"CARDINAL","start_char":9123,"end_char":9138},{"text":"183,418 197,664","label":"CARDINAL","start_char":9200,"end_char":9215},{"text":"═══════ ═══════","label":"PERSON","start_char":9216,"end_char":9231},{"text":"FRS","label":"ORG","start_char":9396,"end_char":9399},{"text":"The Financial Reporting Standard","label":"WORK_OF_ART","start_char":9405,"end_char":9437},{"text":"UK","label":"GPE","start_char":9456,"end_char":9458},{"text":"Republic of Ireland","label":"GPE","start_char":9463,"end_char":9482},{"text":"Section 1A","label":"LAW","start_char":9494,"end_char":9504},{"text":"Chapter 15","label":"LAW","start_char":9623,"end_char":9633},{"text":"6","label":"CARDINAL","start_char":9642,"end_char":9643},{"text":"the Companies Act 2014","label":"LAW","start_char":9647,"end_char":9669},{"text":"the Companies Act 2014","label":"LAW","start_char":9981,"end_char":10003},{"text":"a financial year","label":"DATE","start_char":10239,"end_char":10255},{"text":"the Companies Act 2014","label":"LAW","start_char":10303,"end_char":10325},{"text":"10 February 2023","label":"DATE","start_char":10430,"end_char":10446},{"text":"EQUITY","label":"ORG","start_char":10518,"end_char":10524},{"text":"31 July 2022","label":"DATE","start_char":10531,"end_char":10543},{"text":"10","label":"CARDINAL","start_char":10544,"end_char":10546},{"text":"Retained Total","label":"ORG","start_char":10557,"end_char":10571},{"text":"1 August 2020","label":"DATE","start_char":10604,"end_char":10617},{"text":"48,009 73,009","label":"DATE","start_char":10625,"end_char":10638},{"text":"the financial year","label":"DATE","start_char":10674,"end_char":10692},{"text":"31 July 2021","label":"DATE","start_char":10738,"end_char":10750},{"text":"172,664 197,664","label":"CARDINAL","start_char":10758,"end_char":10773},{"text":"the financial year - 5,754","label":"DATE","start_char":10809,"end_char":10835},{"text":"20,000","label":"CARDINAL","start_char":10890,"end_char":10896},{"text":"20,000","label":"CARDINAL","start_char":10899,"end_char":10905},{"text":"31 July 2022","label":"DATE","start_char":10934,"end_char":10946},{"text":"25,000 158,418 183,418\n═══════ ═══════ ═══════\nNOTES TO THE FINANCIAL STATEMENTS\nfor","label":"QUANTITY","start_char":10947,"end_char":11031},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":11032,"end_char":11069},{"text":"11","label":"CARDINAL","start_char":11070,"end_char":11072},{"text":"1","label":"CARDINAL","start_char":11073,"end_char":11074},{"text":"General Information","label":"ORG","start_char":11076,"end_char":11095},{"text":"the Republic of Ireland","label":"GPE","start_char":11158,"end_char":11181},{"text":"Euro","label":"PERSON","start_char":11479,"end_char":11483},{"text":"2","label":"CARDINAL","start_char":11542,"end_char":11543},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":11824,"end_char":11861},{"text":"FRS 102 Section 1A","label":"ORG","start_char":11918,"end_char":11936},{"text":"the Companies Act 2014","label":"LAW","start_char":11958,"end_char":11980},{"text":"the Companies Act 2014","label":"LAW","start_char":12469,"end_char":12491},{"text":"FRS","label":"ORG","start_char":12496,"end_char":12499},{"text":"The Financial Reporting Standard","label":"WORK_OF_ART","start_char":12505,"end_char":12537},{"text":"UK","label":"GPE","start_char":12556,"end_char":12558},{"text":"Republic of Ireland","label":"GPE","start_char":12563,"end_char":12582},{"text":"Section 1A","label":"LAW","start_char":12584,"end_char":12594},{"text":"the Financial Reporting Council","label":"ORG","start_char":12606,"end_char":12637},{"text":"the Companies Act 2014","label":"LAW","start_char":12710,"end_char":12732},{"text":"the financial year","label":"DATE","start_char":12747,"end_char":12765},{"text":"the ‘Small Companies Regime","label":"ORG","start_char":12796,"end_char":12823},{"text":"280C","label":"CARDINAL","start_char":12852,"end_char":12856},{"text":"the Companies Act 2014","label":"LAW","start_char":12860,"end_char":12882},{"text":"Section 1A","label":"LAW","start_char":12887,"end_char":12897},{"text":"FRS","label":"ORG","start_char":12901,"end_char":12904},{"text":"102","label":"CARDINAL","start_char":12905,"end_char":12908},{"text":"15%","label":"PERCENT","start_char":13365,"end_char":13368},{"text":"15%","label":"PERCENT","start_char":13418,"end_char":13421},{"text":"25%","label":"PERCENT","start_char":13453,"end_char":13456},{"text":"Leasing\nRentals","label":"ORG","start_char":13654,"end_char":13669},{"text":"first","label":"ORDINAL","start_char":13899,"end_char":13904},{"text":"first","label":"ORDINAL","start_char":13908,"end_char":13913},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":14705,"end_char":14742},{"text":"12","label":"CARDINAL","start_char":14743,"end_char":14745},{"text":"the\nfinancial year","label":"DATE","start_char":16027,"end_char":16045},{"text":"3","label":"CARDINAL","start_char":17744,"end_char":17745},{"text":"2022","label":"DATE","start_char":17764,"end_char":17768},{"text":"2021","label":"DATE","start_char":17769,"end_char":17773},{"text":"111,511 114,247","label":"CARDINAL","start_char":17853,"end_char":17868},{"text":"═══════ ═══════\n4","label":"PERSON","start_char":17869,"end_char":17886},{"text":"2022","label":"DATE","start_char":17906,"end_char":17910},{"text":"36,473","label":"CARDINAL","start_char":17990,"end_char":17996},{"text":"77,240","label":"CARDINAL","start_char":17999,"end_char":18005},{"text":"═══════ ═══════\n5","label":"PERSON","start_char":18007,"end_char":18024},{"text":"2022","label":"DATE","start_char":18064,"end_char":18068},{"text":"7,600","label":"CARDINAL","start_char":18087,"end_char":18092},{"text":"═══════ ═══════\nNOTES","label":"PERSON","start_char":18095,"end_char":18116},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":18159,"end_char":18196},{"text":"13","label":"CARDINAL","start_char":18197,"end_char":18199},{"text":"6","label":"CARDINAL","start_char":18200,"end_char":18201},{"text":"monthly","label":"DATE","start_char":18225,"end_char":18232},{"text":"the financial year","label":"DATE","start_char":18282,"end_char":18300},{"text":"24","label":"DATE","start_char":18305,"end_char":18307},{"text":"2021 - 30","label":"DATE","start_char":18310,"end_char":18319},{"text":"7","label":"CARDINAL","start_char":18322,"end_char":18323},{"text":"Plant and Fixtures","label":"ORG","start_char":18341,"end_char":18359},{"text":"Motor Total","label":"ORG","start_char":18361,"end_char":18372},{"text":"1 August","label":"DATE","start_char":18431,"end_char":18439},{"text":"2021","label":"DATE","start_char":18440,"end_char":18444},{"text":"226,061","label":"CARDINAL","start_char":18453,"end_char":18460},{"text":"60,229 938,075","label":"CARDINAL","start_char":18461,"end_char":18475},{"text":"17,346","label":"CARDINAL","start_char":18486,"end_char":18492},{"text":"2,822","label":"CARDINAL","start_char":18493,"end_char":18498},{"text":"31 July 2022","label":"DATE","start_char":18543,"end_char":18555},{"text":"669,131","label":"CARDINAL","start_char":18556,"end_char":18563},{"text":"228,883 60,229 958,243","label":"CARDINAL","start_char":18564,"end_char":18586},{"text":"1 August","label":"DATE","start_char":18635,"end_char":18643},{"text":"467,342 190,520 41,874 699,736","label":"QUANTITY","start_char":18649,"end_char":18679},{"text":"the financial year","label":"DATE","start_char":18691,"end_char":18709},{"text":"83,008 20,974","label":"CARDINAL","start_char":18710,"end_char":18723},{"text":"7,529 111,511","label":"CARDINAL","start_char":18724,"end_char":18737},{"text":"31 July 2022","label":"DATE","start_char":18773,"end_char":18785},{"text":"31 July 2022","label":"DATE","start_char":18867,"end_char":18879},{"text":"17,389","label":"CARDINAL","start_char":18888,"end_char":18894},{"text":"10,826 146,996","label":"CARDINAL","start_char":18895,"end_char":18909},{"text":"═══════ ═══════ ═══════ ═══════","label":"PERSON","start_char":18910,"end_char":18941},{"text":"31 July 2021","label":"DATE","start_char":18945,"end_char":18957},{"text":"35,541","label":"CARDINAL","start_char":18966,"end_char":18972},{"text":"18,355 238,339","label":"CARDINAL","start_char":18973,"end_char":18987},{"text":"═══════ ═══════ ═══════ ═══════\n8","label":"PERSON","start_char":18988,"end_char":19021},{"text":"2022","label":"DATE","start_char":19030,"end_char":19034},{"text":"2021","label":"DATE","start_char":19035,"end_char":19039},{"text":"8,237 27,678","label":"CARDINAL","start_char":19061,"end_char":19073},{"text":"36,813 33,466","label":"CARDINAL","start_char":19110,"end_char":19123},{"text":"45,050 61,144","label":"CARDINAL","start_char":19140,"end_char":19153},{"text":"═══════ ═══════","label":"PERSON","start_char":19154,"end_char":19169},{"text":"9","label":"CARDINAL","start_char":19253,"end_char":19254},{"text":"2022 2021","label":"DATE","start_char":19264,"end_char":19273},{"text":"249,469","label":"CARDINAL","start_char":19292,"end_char":19299},{"text":"200,134","label":"CARDINAL","start_char":19300,"end_char":19307},{"text":"15","label":"CARDINAL","start_char":19348,"end_char":19350},{"text":"36,473","label":"CARDINAL","start_char":19354,"end_char":19360},{"text":"3,616 25,580","label":"CARDINAL","start_char":19375,"end_char":19387},{"text":"4,396","label":"CARDINAL","start_char":19416,"end_char":19421},{"text":"4,342","label":"CARDINAL","start_char":19422,"end_char":19427},{"text":"4,690 182","label":"CARDINAL","start_char":19437,"end_char":19446},{"text":"287,827","label":"CARDINAL","start_char":19489,"end_char":19496},{"text":"278,281","label":"CARDINAL","start_char":19497,"end_char":19504},{"text":"═══════ ═══════\n10","label":"PERSON","start_char":19505,"end_char":19523},{"text":"2022 2021","label":"DATE","start_char":19535,"end_char":19544},{"text":"36,224 161,735","label":"CARDINAL","start_char":19621,"end_char":19635},{"text":"21,695","label":"CARDINAL","start_char":19703,"end_char":19709},{"text":"119,713","label":"CARDINAL","start_char":19726,"end_char":19733},{"text":"73,164","label":"CARDINAL","start_char":19734,"end_char":19740},{"text":"129,998 72,624","label":"CARDINAL","start_char":19750,"end_char":19764},{"text":"49,834 50,000","label":"CARDINAL","start_char":19781,"end_char":19794},{"text":"8,336 2,001","label":"CARDINAL","start_char":19804,"end_char":19815},{"text":"344,105 381,219","label":"CARDINAL","start_char":19832,"end_char":19847},{"text":"═══════ ═══════\nNOTES","label":"PERSON","start_char":19848,"end_char":19869},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":19912,"end_char":19949},{"text":"14","label":"CARDINAL","start_char":19950,"end_char":19952},{"text":"11","label":"CARDINAL","start_char":19953,"end_char":19955},{"text":"2022 2021","label":"DATE","start_char":19967,"end_char":19976},{"text":"more than one year","label":"DATE","start_char":20003,"end_char":20021},{"text":"Bank","label":"ORG","start_char":20026,"end_char":20030},{"text":"32,012 62,324","label":"CARDINAL","start_char":20036,"end_char":20049},{"text":"═══════ ═══════","label":"PERSON","start_char":20050,"end_char":20065},{"text":"one year","label":"DATE","start_char":20085,"end_char":20093},{"text":"10","label":"CARDINAL","start_char":20122,"end_char":20124},{"text":"36,224 161,735","label":"CARDINAL","start_char":20126,"end_char":20140},{"text":"between one and","label":"CARDINAL","start_char":20151,"end_char":20166},{"text":"two years 32,012","label":"DATE","start_char":20167,"end_char":20183},{"text":"34,778","label":"CARDINAL","start_char":20184,"end_char":20190},{"text":"between two and five years - 27,546","label":"DATE","start_char":20201,"end_char":20236},{"text":"68,236 224,059","label":"CARDINAL","start_char":20253,"end_char":20267},{"text":"═══════ ═══════\n12","label":"PERSON","start_char":20268,"end_char":20286},{"text":"year-ended","label":"DATE","start_char":20377,"end_char":20387},{"text":"31 July 2022","label":"DATE","start_char":20388,"end_char":20400},{"text":"13","label":"CARDINAL","start_char":20402,"end_char":20404},{"text":"year-ended","label":"DATE","start_char":20491,"end_char":20501},{"text":"31 July 2022","label":"DATE","start_char":20502,"end_char":20514},{"text":"14","label":"CARDINAL","start_char":20516,"end_char":20518},{"text":"2022","label":"DATE","start_char":20544,"end_char":20548},{"text":"2021","label":"DATE","start_char":20549,"end_char":20553},{"text":"28,399","label":"CARDINAL","start_char":20578,"end_char":20584},{"text":"═══════ ═══════\n","label":"PERSON","start_char":20585,"end_char":20601},{"text":"15","label":"CARDINAL","start_char":20601,"end_char":20603},{"text":"the Companies Act 2014","label":"LAW","start_char":20648,"end_char":20670},{"text":"the financial year end","label":"DATE","start_char":20770,"end_char":20792},{"text":"2022","label":"DATE","start_char":20827,"end_char":20831},{"text":"year 2021","label":"DATE","start_char":20835,"end_char":20844},{"text":"year","label":"DATE","start_char":20848,"end_char":20852},{"text":"36,473","label":"CARDINAL","start_char":20864,"end_char":20870},{"text":"═══════\nCommon","label":"PERSON","start_char":20910,"end_char":20924},{"text":"16","label":"CARDINAL","start_char":20957,"end_char":20959},{"text":"Post-Balance Sheet Events","label":"ORG","start_char":20961,"end_char":20986},{"text":"the financial year-end","label":"DATE","start_char":21053,"end_char":21075},{"text":"17","label":"CARDINAL","start_char":21077,"end_char":21079},{"text":"10 February\n2023","label":"DATE","start_char":21207,"end_char":21223},{"text":"15","label":"CARDINAL","start_char":21225,"end_char":21227},{"text":"31","label":"CARDINAL","start_char":21320,"end_char":21322},{"text":"SUPPLEMENTARY INFORMATION RELATING","label":"ORG","start_char":21333,"end_char":21367},{"text":"the financial year ended 31 July 2022","label":"DATE","start_char":21418,"end_char":21455},{"text":"2022","label":"DATE","start_char":21456,"end_char":21460},{"text":"16","label":"CARDINAL","start_char":21547,"end_char":21549},{"text":"1,840,207 1,955,630","label":"CARDINAL","start_char":21556,"end_char":21575},{"text":"61,144 35,412","label":"CARDINAL","start_char":21641,"end_char":21654},{"text":"785,762 487,941","label":"CARDINAL","start_char":21665,"end_char":21680},{"text":"78,274","label":"CARDINAL","start_char":21696,"end_char":21702},{"text":"12,220","label":"CARDINAL","start_char":21720,"end_char":21726},{"text":"601,627","label":"CARDINAL","start_char":21753,"end_char":21760},{"text":"45,050","label":"CARDINAL","start_char":21797,"end_char":21803},{"text":"61,144","label":"CARDINAL","start_char":21806,"end_char":21812},{"text":"814,076 540,483","label":"CARDINAL","start_char":21830,"end_char":21845},{"text":"1,026,131 1,415,147","label":"CARDINAL","start_char":21875,"end_char":21894},{"text":"55.8%","label":"PERCENT","start_char":21935,"end_char":21940},{"text":"72.4%","label":"PERCENT","start_char":21941,"end_char":21946},{"text":"609,307 588,568","label":"CARDINAL","start_char":22006,"end_char":22021},{"text":"28,399","label":"CARDINAL","start_char":22053,"end_char":22059},{"text":"Employer's NI/","label":"ORG","start_char":22060,"end_char":22074},{"text":"67,083 64,014","label":"CARDINAL","start_char":22093,"end_char":22106},{"text":"260,959","label":"CARDINAL","start_char":22139,"end_char":22146},{"text":"12,700","label":"CARDINAL","start_char":22191,"end_char":22197},{"text":"20,553 1,455","label":"CARDINAL","start_char":22219,"end_char":22231},{"text":"47,877 19,042","label":"CARDINAL","start_char":22245,"end_char":22258},{"text":"6,790 1,576","label":"CARDINAL","start_char":22265,"end_char":22276},{"text":"12,515","label":"CARDINAL","start_char":22287,"end_char":22293},{"text":"32,504 19,123","label":"CARDINAL","start_char":22327,"end_char":22340},{"text":"28,270 25,575","label":"CARDINAL","start_char":22356,"end_char":22369},{"text":"4,444 5,724","label":"CARDINAL","start_char":22379,"end_char":22390},{"text":"11,027","label":"CARDINAL","start_char":22415,"end_char":22421},{"text":"13,205 90,579","label":"CARDINAL","start_char":22462,"end_char":22475},{"text":"6,015 11,471","label":"CARDINAL","start_char":22488,"end_char":22500},{"text":"5,598 9,111","label":"CARDINAL","start_char":22511,"end_char":22522},{"text":"20,795 7,447","label":"CARDINAL","start_char":22538,"end_char":22550},{"text":"16,374 23,877","label":"CARDINAL","start_char":22580,"end_char":22593},{"text":"64,661 94,939","label":"CARDINAL","start_char":22617,"end_char":22630},{"text":"48,783 14,831","label":"CARDINAL","start_char":22643,"end_char":22656},{"text":"25,568 21,841","label":"CARDINAL","start_char":22670,"end_char":22683},{"text":"19,120 19,947","label":"CARDINAL","start_char":22694,"end_char":22707},{"text":"199 676","label":"CARDINAL","start_char":22726,"end_char":22733},{"text":"13,582","label":"CARDINAL","start_char":22753,"end_char":22759},{"text":"867","label":"CARDINAL","start_char":22774,"end_char":22777},{"text":"2,052","label":"CARDINAL","start_char":22797,"end_char":22802},{"text":"16,813","label":"CARDINAL","start_char":22804,"end_char":22810},{"text":"120 384","label":"CARDINAL","start_char":22829,"end_char":22836},{"text":"111,511 114,247","label":"CARDINAL","start_char":22890,"end_char":22905},{"text":"976,304 1,212,166","label":"CARDINAL","start_char":22922,"end_char":22939},{"text":"Finance\nBank","label":"ORG","start_char":22956,"end_char":22968},{"text":"7,600","label":"CARDINAL","start_char":22983,"end_char":22988},{"text":"36,473","label":"CARDINAL","start_char":23026,"end_char":23032},{"text":"77,240","label":"CARDINAL","start_char":23035,"end_char":23041},{"text":"5,754","label":"CARDINAL","start_char":23070,"end_char":23075},{"text":"125,741","label":"CARDINAL","start_char":23076,"end_char":23083},{"text":"═══════ ═══════","label":"PERSON","start_char":23084,"end_char":23099}]};
+
+    function drawMetricChart() {
+      const metricRows = [
+        ...pageData.summaryScores.rouge.map((m) => ({ ...m, family: 'ROUGE' })),
+        ...pageData.summaryScores.bleu.map((m) => ({ ...m, family: 'BLEU' }))
+      ];
+
+      const svg = d3.select('#metricChart');
+      const width = svg.node().clientWidth || 520;
+      const height = svg.node().clientHeight || 290;
+      svg.attr('viewBox', '0 0 ' + width + ' ' + height);
+
+      const margin = { top: 16, right: 14, bottom: 80, left: 48 };
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+
+      const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      const x = d3.scaleBand()
+        .domain(metricRows.map((d) => d.metric))
+        .range([0, innerW])
+        .padding(0.22);
+
+      const y = d3.scaleLinear()
+        .domain([0, 100])
+        .nice()
+        .range([innerH, 0]);
+
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d + '%'))
+        .call((axis) => axis.selectAll('path,line').attr('stroke', '#d1d5db'));
+
+      g.append('g')
+        .attr('transform', 'translate(0,' + innerH + ')')
+        .call(d3.axisBottom(x))
+        .call((axis) => axis.selectAll('text')
+          .attr('transform', 'rotate(-25)')
+          .style('text-anchor', 'end'))
+        .call((axis) => axis.selectAll('path,line').attr('stroke', '#d1d5db'));
+
+      g.selectAll('rect.metric')
+        .data(metricRows)
+        .enter()
+        .append('rect')
+        .attr('class', 'metric')
+        .attr('x', (d) => x(d.metric))
+        .attr('y', (d) => y(d.value))
+        .attr('width', x.bandwidth())
+        .attr('height', (d) => innerH - y(d.value))
+        .attr('rx', 5)
+        .attr('fill', (d) => d.family === 'ROUGE' ? 'var(--rouge)' : 'var(--bleu)');
+
+      g.selectAll('text.value')
+        .data(metricRows)
+        .enter()
+        .append('text')
+        .attr('x', (d) => (x(d.metric) || 0) + x.bandwidth() / 2)
+        .attr('y', (d) => y(d.value) - 6)
+        .attr('text-anchor', 'middle')
+        .style('font-size', '11px')
+        .style('font-weight', '600')
+        .text((d) => d.value + '%');
+    }
+
+    function drawEntityHighlights() {
+      const container = d3.select('#entitySample');
+      const legend = d3.select('#entityLegend');
+      const text = pageData.entitySample.text || '';
+      const entities = Array.isArray(pageData.entitySample.entities) ? pageData.entitySample.entities : [];
+
+      if (!text) {
+        container.text('No extracted text available for NER highlighting.');
+        return;
+      }
+
+      const labels = Array.from(new Set(entities.map((e) => e.label || 'UNKNOWN')));
+      const colors = d3.scaleOrdinal()
+        .domain(labels)
+        .range(d3.schemeSet3.concat(d3.schemeTableau10));
+
+      let cursor = 0;
+      for (const entity of entities) {
+        const start = entity.start_char;
+        const end = Math.min(entity.end_char, text.length);
+
+        if (start > cursor) {
+          container.append('span').text(text.slice(cursor, start));
+        }
+
+        container.append('span')
+          .attr('class', 'entity')
+          .style('background', colors(entity.label || 'UNKNOWN'))
+          .style('border-color', d3.color(colors(entity.label || 'UNKNOWN')).darker(0.6))
+          .text(text.slice(start, end))
+          .append('title')
+          .text((entity.label || 'UNKNOWN') + ': ' + (entity.text || ''));
+
+        cursor = end;
+      }
+
+      if (cursor < text.length) {
+        container.append('span').text(text.slice(cursor));
+      }
+
+      const counts = d3.rollups(
+        entities,
+        (v) => v.length,
+        (d) => d.label || 'UNKNOWN'
+      ).sort((a, b) => b[1] - a[1]);
+
+      if (!counts.length) {
+        legend.append('div').attr('class', 'legend-item').text('No entities found in sampled text window.');
+        return;
+      }
+
+      legend.selectAll('div.legend-item')
+        .data(counts)
+        .enter()
+        .append('div')
+        .attr('class', 'legend-item')
+        .html(([label, count]) => '<span class="swatch" style="background:' + colors(label) + '"></span>' + label + ' (' + count + ')');
+    }
+
+    function drawTrafficAndAnomalies() {
+      const status = pageData.ragStatus || 'unknown';
+      d3.selectAll('#trafficLights .light')
+        .classed('active', function () {
+          return this.dataset.status === status;
+        });
+
+      const severityData = [
+        { label: 'high', value: pageData.severityCounts.high || 0, color: 'var(--high)' },
+        { label: 'medium', value: pageData.severityCounts.medium || 0, color: 'var(--medium)' },
+        { label: 'low', value: pageData.severityCounts.low || 0, color: 'var(--low)' },
+        { label: 'other', value: pageData.severityCounts.other || 0, color: 'var(--other)' }
+      ];
+
+      const svg = d3.select('#anomalyChart');
+      const width = svg.node().clientWidth || 520;
+      const height = svg.node().clientHeight || 290;
+      svg.attr('viewBox', '0 0 ' + width + ' ' + height);
+
+      const margin = { top: 12, right: 12, bottom: 40, left: 78 };
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+
+      const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      const y = d3.scaleBand()
+        .domain(severityData.map((d) => d.label))
+        .range([0, innerH])
+        .padding(0.2);
+
+      const maxValue = Math.max(1, d3.max(severityData, (d) => d.value) || 1);
+      const x = d3.scaleLinear()
+        .domain([0, maxValue])
+        .nice()
+        .range([0, innerW]);
+
+      g.append('g')
+        .call(d3.axisLeft(y))
+        .call((axis) => axis.selectAll('path,line').attr('stroke', '#d1d5db'));
+
+      g.append('g')
+        .attr('transform', 'translate(0,' + innerH + ')')
+        .call(d3.axisBottom(x).ticks(Math.min(6, maxValue)).tickFormat(d3.format('d')))
+        .call((axis) => axis.selectAll('path,line').attr('stroke', '#d1d5db'));
+
+      g.selectAll('rect.row')
+        .data(severityData)
+        .enter()
+        .append('rect')
+        .attr('class', 'row')
+        .attr('x', 0)
+        .attr('y', (d) => y(d.label))
+        .attr('height', y.bandwidth())
+        .attr('width', (d) => x(d.value))
+        .attr('fill', (d) => d.color)
+        .attr('rx', 6);
+
+      g.selectAll('text.count')
+        .data(severityData)
+        .enter()
+        .append('text')
+        .attr('x', (d) => x(d.value) + 8)
+        .attr('y', (d) => (y(d.label) || 0) + y.bandwidth() / 2 + 4)
+        .style('font-size', '12px')
+        .style('font-weight', '600')
+        .text((d) => d.value);
+
+      const list = d3.select('#flagList');
+      const flags = Array.isArray(pageData.auditFlags) ? pageData.auditFlags : [];
+
+      if (!flags.length) {
+        list.append('div').attr('class', 'flag-item').text('No audit flags were returned in this payload.');
+        return;
+      }
+
+      flags.forEach((flag) => {
+        const severity = String(flag.severity || 'other').toLowerCase();
+        const badgeClass = ['high', 'medium', 'low'].includes(severity) ? severity : 'other';
+        const title = flag.title || flag.id || 'Audit Flag';
+        const msg = flag.message || '';
+
+        const item = list.append('div').attr('class', 'flag-item');
+        item.html('<span class="badge ' + badgeClass + '">' + severity + '</span><strong>' + title + '</strong>');
+        if (msg) {
+          item.append('div').style('margin-top', '4px').text(msg);
+        }
+      });
+    }
+
+    drawMetricChart();
+    drawEntityHighlights();
+    drawTrafficAndAnomalies();
+  </script>
+</body>
+</html>

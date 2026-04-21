@@ -22,7 +22,7 @@ function findLocalTesseractDir() {
   const runtimesDir = path.join(__dirname, '..', '..', 'runtimes');
   const baseDir = path.join(runtimesDir, 'tesseract');
   const candidates = [
-    // Local runtimes folder (preferred)
+    // Local runtimes folder 
     baseDir,
     path.join(baseDir, 'bin'),
     path.join(baseDir, 'Tesseract-OCR'),

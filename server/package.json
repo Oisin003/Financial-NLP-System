@@ -8,8 +8,11 @@
     "start": "nodemon server.js",
     "start:prod": "node server.js",
     "create-admin": "node createAdmin.js",
+    "show-ocr-stages": "node scripts/showOcrStages.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit",
-    "ablation": "node scripts/runAblationStudy.js"
+    "ablation": "node scripts/runAblationStudy.js",
+    "ablation:chart": "node scripts/generateAblationChart.js",
+    "nlp:insights": "node scripts/generateNlpInsightsDashboard.js"
   },
   "jest": {
     "testEnvironment": "node",
